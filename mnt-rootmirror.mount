@@ -1,0 +1,8 @@
+[Unit]
+Description=Bound mirror of the root filesystem, for systemd-nspawn
+
+[Mount]
+What=/
+Where=/mnt/rootmirror
+Type=none
+Options=bind
