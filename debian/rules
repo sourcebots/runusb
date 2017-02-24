@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with systemd
+
+override_dh_systemd_start:
+	dh_systemd_start --restart-after-upgrade runusb.service
+
+override_dh_install:
+	find debian/ -name __pycache__ -type d | xargs -r rm -r
+	dh_install
