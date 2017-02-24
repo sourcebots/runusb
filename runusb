@@ -38,7 +38,7 @@ def argument_parser():
         '--spawn-image',
         help="root filesystem for the container",
         action='store',
-        default='/var/rootmirror',
+        default='/mnt/rootmirror',
     )
 
     parser.add_argument(
