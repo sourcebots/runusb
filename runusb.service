@@ -4,7 +4,7 @@ Requires=mnt-rootmirror.mount
 Requires=robotd.service
 
 [Service]
-ExecStart=/usr/bin/runusb --bind /var/robotd
+ExecStart=/usr/bin/runusb --verbose --bind /var/robotd
 
 [Install]
 WantedBy=multi-user.target

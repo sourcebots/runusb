@@ -3,13 +3,28 @@
 import os.path
 import sys
 import select
+import logging
 import argparse
 import subprocess
 import collections
 
+
+LOGGER = logging.getLogger('runusb')
+
+
 def argument_parser():
     parser = argparse.ArgumentParser(
         description="Automatically run from mountpoints with .autorun",
+    )
+
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        help="enable verbose output",
+        action='store_const',
+        const=logging.INFO,
+        dest='log_level',
+        default=logging.WARNING,
     )
 
     parser.add_argument(
@@ -178,6 +193,8 @@ class AutorunProcessRegistry(object):
 
 def main(args=sys.argv[1:]):
     options = argument_parser().parse_args(args)
+
+    logging.basicConfig(level=options.log_level)
 
     # Actual process drivers
     def open_process(path):
