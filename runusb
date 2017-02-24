@@ -132,6 +132,10 @@ class FSTabReader(object):
 
     def watch(self, timeout=None):
         _, _, changed = select.select([], [], [self.handle], timeout)
+
+        if changed:
+            LOGGER.debug("Detected change in %s", self.path)
+
         return bool(changed)
 
 
@@ -148,11 +152,11 @@ class AutorunProcessRegistry(object):
         actual_mountpoint_paths = {
             x.mountpoint
             for x in mountpoints
-            if self._is_viable_mountpoint(mountpoint)
+            if self._is_viable_mountpoint(x)
         }
 
         expected_mountpoint_paths = {
-            x for x in self.mountpoint_handles.keys()
+            x for x in self.mountpoint_processes.keys()
         }
 
         # Handle newly detected filesystems
@@ -170,17 +174,28 @@ class AutorunProcessRegistry(object):
             self._detect_dead_mountpoint_path(old_mountpoint_path)
 
     def _detect_new_mountpoint_path(self, path):
+        LOGGER.info("Found new mountpoint: %s", path)
         process = self.open_process(path)
+        LOGGER.info("  -> launched process")
         self.mountpoint_processes[path] = process
 
     def _detect_dead_mountpoint_path(self, path):
+        LOGGER.info("Lost mountpoint: %s", path)
         process = self.mountpoint_processes[path]
-        self.close_process(process)
+        self.close_process(path, process)
+        LOGGER.info("  -> closed process")
         del self.mountpoint_processes[path]
 
     def _is_viable_mountpoint(self, mountpoint):
         # Drop restricted types
         if mountpoint.filesystem in VERBOTEN_FILESYSTEMS:
+            LOGGER.debug(
+                "Disregarding filesystem %s due to forbidden filesystem "
+                "type %s",
+                mountpoint.mountpoint,
+                mountpoint.filesystem,
+            )
+
             return False
 
         # Sanity: never consider the root filesystem
