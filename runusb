@@ -29,6 +29,14 @@ def argument_parser():
     )
 
     parser.add_argument(
+        '--debug',
+        help="enable very verbose output",
+        action='store_const',
+        const=logging.DEBUG,
+        dest='log_level',
+    )
+
+    parser.add_argument(
         '--runfile',
         help="name of the autorun file to detect",
         action='store',
