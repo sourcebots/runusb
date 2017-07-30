@@ -274,7 +274,7 @@ def main(args=sys.argv[1:]):
         # to die horribly.
         print(get_machinename(path))
         command = ('machinectl', 'terminate', get_machinename(path))
-        result = subprocess.check_call(command)
+        subprocess.call(command)
         process.kill()
 
     def is_autorun_mountpoint(path):
