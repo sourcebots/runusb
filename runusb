@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os.path
+import re
 import sys
 import select
 import logging
@@ -25,6 +26,14 @@ def argument_parser():
         const=logging.INFO,
         dest='log_level',
         default=logging.WARNING,
+    )
+
+    parser.add_argument(
+        '--debug',
+        help="enable very verbose output",
+        action='store_const',
+        const=logging.DEBUG,
+        dest='log_level',
     )
 
     parser.add_argument(
@@ -216,6 +225,9 @@ def main(args=sys.argv[1:]):
 
     logging.basicConfig(level=options.log_level)
 
+    def get_machinename(path):
+        return re.sub(r'[^\w]', r'_', path).strip('_')
+
     # Actual process drivers
     def open_process(path):
         command = ['systemd-nspawn']
@@ -240,6 +252,10 @@ def main(args=sys.argv[1:]):
         # Bind-mount the actual path
         command.extend(('--bind', path))
 
+        # Attach a machine ID, use the path as the ID
+        print(get_machinename(path))
+        command.extend(('--machine', get_machinename(path)))
+
         # Run the autorun file with bash -c
         command.extend(('/bin/bash', '-c'))
 
@@ -256,6 +272,10 @@ def main(args=sys.argv[1:]):
     def close_process(path, process):
         # With the mountpoint now missing the only sensible thing to do is
         # to die horribly.
+        print(get_machinename(path))
+        command = ('machinectl', 'terminate', get_machinename(path))
+        subprocess.call(command)
+        process.wait(timeout=5)
         process.kill()
 
     def is_autorun_mountpoint(path):
