@@ -266,9 +266,7 @@ def main(args=sys.argv[1:]):
         # to die horribly.
         print(get_machinename(path))
         command = ('machinectl', 'terminate', get_machinename(path))
-        result = subprocess.call(command)
-        if result:
-            raise RuntimeError("Non-zero return code from {}".format(command))
+        result = subprocess.check_call(command)
         process.kill()
 
     def is_autorun_mountpoint(path):
