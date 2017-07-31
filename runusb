@@ -276,7 +276,10 @@ def main(args=sys.argv[1:]):
         command = ('machinectl', 'terminate', get_machinename(path))
         subprocess.call(command)
         process.wait(timeout=5)
-        process.kill()
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
 
     def is_autorun_mountpoint(path):
         # subpaths of the root image are excluded
