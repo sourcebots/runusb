@@ -261,7 +261,7 @@ def main(args=sys.argv[1:]):
 
         # cd to the mountpoint and run the autorun file
         command.append(
-            'cd "{mountpoint}" ; exec ./"{autorun}"'.format(
+            'cd "{mountpoint}" ; exec ./"{autorun}" 2>&1 | tee -a log.txt'.format(
                 mountpoint=path,
                 autorun=options.runfile,
             ),
