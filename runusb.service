@@ -1,6 +1,7 @@
 [Unit]
 Description=Automatic running of USB devices
 Requires=mnt-rootmirror.mount
+After=robotd.service
 Requires=robotd.service
 
 [Service]
