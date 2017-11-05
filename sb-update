@@ -10,6 +10,7 @@ import logging
 UPDATE_FILENAME = 'update.tar.xz'
 UPDATE_DIR = '/updating'
 SB_DEBS = '/sb-debs'
+LOG_FILE = 'update.log'
 
 
 def argument_parser():
@@ -46,9 +47,11 @@ def update_and_upgrade():
 def main():
     options = argument_parser().parse_args()
     logging.basicConfig(
-        filename=os.path.join(options.path, 'update.log'),
-        filemode='a',
-        level=logging.DEBUG
+        level=logging.DEBUG,
+        handlers=[
+            logging.FileHandler(os.path.join(options.path, LOG_FILE)),
+            logging.StreamHandler()
+        ]
     )
     update_file = os.path.join(options.path, UPDATE_FILENAME)
     logging.info("Starting updates from {}".format(update_file))
@@ -59,15 +62,18 @@ def main():
         raise FileNotFoundError("Can't find deb files in {}, exiting".format(UPDATE_DIR))
     logging.debug("Found {} potential packages".format(len(deb_glob)))
     for deb in deb_glob:
-        check_deb = subprocess.call(['dpkg', '--info', deb])
+        check_deb = subprocess.call(['dpkg', '--info', deb], stdout=subprocess.DEVNULL)
         if check_deb != 0:
             raise ValueError("file {} is not a deb file!".format(deb))
         logging.debug("Adding {} to internal repo".format(os.path.basename(deb)))
         shutil.copy(deb, SB_DEBS)
     rebuild_apt_repo()
     update_and_upgrade()
-    logging.info("Upgrade complete, shutting down robot.")
-    subprocess.check_call(["shutdown", "now"])
+    logging.info("Upgrade complete, cleaning up.")
+    os.remove(update_file)
+    shutil.rmtree(UPDATE_DIR)
+    logging.info("Rebooting.")
+    subprocess.check_call(["reboot"])
     exit()
 
 
