@@ -54,7 +54,7 @@ def detect_usb_type(mountpoint: str) -> USBType:
         return USBType.INVALID
 
     # Check for existence of update file
-    if os.path.exists(os.path.join(mountpoint, UPDATE_FILENAME))
+    if os.path.exists(os.path.join(mountpoint, UPDATE_FILENAME)):
         return USBType.UPDATE
 
     # Check for the existence of the robot code
@@ -106,7 +106,7 @@ def update_robot(path):
 
 def run_robot_code(path):
     command = [
-        'systemd-nspawn'
+        'systemd-nspawn',
         '--read-only',
         '--private-network'
     ]
