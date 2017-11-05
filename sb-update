@@ -40,6 +40,7 @@ def update_and_upgrade():
     logging.debug("Updating Repos")
     subprocess.check_call(['apt', 'update', '-y'], stdout=subprocess.DEVNULL)
     logging.debug(subprocess.check_output(['apt', 'list', '--upgradable']))
+
     logging.debug("Performing update")
     subprocess.check_call(['apt', 'upgrade', '-y'], stdout=subprocess.DEVNULL)
 
@@ -54,12 +55,14 @@ def main():
         ]
     )
     update_file = os.path.join(options.path, UPDATE_FILENAME)
+
     logging.info("Starting updates from {}".format(update_file))
     os.mkdir(UPDATE_DIR)
     subprocess.check_call(['tar', 'xJf', update_file, '-C', UPDATE_DIR])
     deb_glob = glob("{}/*.deb".format(UPDATE_DIR))
     if len(deb_glob) == 0:
         raise FileNotFoundError("Can't find deb files in {}, exiting".format(UPDATE_DIR))
+
     logging.debug("Found {} potential packages".format(len(deb_glob)))
     for deb in deb_glob:
         check_deb = subprocess.call(['dpkg', '--info', deb], stdout=subprocess.DEVNULL)
@@ -67,11 +70,14 @@ def main():
             raise ValueError("file {} is not a deb file!".format(deb))
         logging.debug("Adding {} to internal repo".format(os.path.basename(deb)))
         shutil.copy(deb, SB_DEBS)
+
     rebuild_apt_repo()
     update_and_upgrade()
+
     logging.info("Upgrade complete, cleaning up.")
     os.remove(update_file)
     shutil.rmtree(UPDATE_DIR)
+
     logging.info("Rebooting.")
     subprocess.check_call(["reboot"])
     exit()
