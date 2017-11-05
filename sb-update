@@ -5,6 +5,7 @@ import os
 import subprocess
 from glob import glob
 import shutil
+import logging
 
 UPDATE_FILENAME = 'update.tar.xz'
 UPDATE_DIR = '/updating'
@@ -25,6 +26,7 @@ def argument_parser():
 
 
 def rebuild_apt_repo():
+    logging.debug("Rebuilding apt repo")
     working_dir = os.getcwd()
     os.chdir(SB_DEBS)
     with open('Packages', 'wb') as packages:
@@ -34,24 +36,37 @@ def rebuild_apt_repo():
 
 
 def update_and_upgrade():
-    subprocess.check_call(['apt', 'update', '-y'])
-    subprocess.check_call(['apt', 'upgrade', '-y'])
+    logging.debug("Updating Repos")
+    subprocess.check_call(['apt', 'update', '-y'], stdout=subprocess.DEVNULL)
+    logging.debug(subprocess.check_output(['apt', 'list', '--upgradable']))
+    logging.debug("Performing update")
+    subprocess.check_call(['apt', 'upgrade', '-y'], stdout=subprocess.DEVNULL)
+
 
 def main():
     options = argument_parser().parse_args()
+    logging.basicConfig(
+        filename=os.path.join(options.path, 'update.log'),
+        filemode='a',
+        level=logging.DEBUG
+    )
     update_file = os.path.join(options.path, UPDATE_FILENAME)
+    logging.info("Starting updates from {}".format(update_file))
     os.mkdir(UPDATE_DIR)
     subprocess.check_call(['tar', 'xJf', update_file, '-C', UPDATE_DIR])
     deb_glob = glob("{}/*.deb".format(UPDATE_DIR))
     if len(deb_glob) == 0:
         raise FileNotFoundError("Can't find deb files in {}, exiting".format(UPDATE_DIR))
+    logging.debug("Found {} potential packages".format(len(deb_glob)))
     for deb in deb_glob:
         check_deb = subprocess.call(['dpkg', '--info', deb])
         if check_deb != 0:
             raise ValueError("file {} is not a deb file!".format(deb))
+        logging.debug("Adding {} to internal repo".format(os.path.basename(deb)))
         shutil.copy(deb, SB_DEBS)
     rebuild_apt_repo()
     update_and_upgrade()
+    logging.info("Upgrade complete, shutting down robot.")
     subprocess.check_call(["shutdown", "now"])
     exit()
 
