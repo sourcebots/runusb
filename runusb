@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-
-import argparse
 import logging
 from collections import namedtuple
 import select
@@ -38,6 +36,7 @@ VERBOTEN_FILESYSTEMS = (
     'sysfs',
 )
 
+
 def get_machinename(path):
     return re.sub(r'[^\w]', r'_', path).strip('_')
 
@@ -62,8 +61,6 @@ def detect_usb_type(mountpoint: str) -> USBType:
         return USBType.ROBOT
 
     return USBType.INVALID
-
-
 
 
 class FSTabReader(object):
@@ -97,7 +94,7 @@ class FSTabReader(object):
         _, _, changed = select.select([], [], [self.handle], timeout)
 
         if changed:
-            LOGGER.debug("Detected change in %s", self.path)
+            LOGGER.debug("Detected change in procfile")
 
         return bool(changed)
 
@@ -172,6 +169,7 @@ class AutorunProcessRegistry(object):
 
     def __init__(self):
         self.mountpoint_processes = {}
+        self.mountpoint_types = {}
 
     def update_filesystems(self, mountpoints):
         actual_mountpoint_paths = {
@@ -205,14 +203,16 @@ class AutorunProcessRegistry(object):
         process = type_handler(path)
         LOGGER.info("  -> launched process")
         self.mountpoint_processes[path] = process
+        self.mountpoint_types[path] = usb_type
 
     def _detect_dead_mountpoint_path(self, path):
         LOGGER.info("Lost mountpoint: %s", path)
-        usb_type = detect_usb_type(path)
+        usb_type = self.mountpoint_types[path]
         close_handler = self.TYPE_CLOSE_HANDLER[usb_type]
         close_handler(path)
         LOGGER.info("  -> closed process")
         del self.mountpoint_processes[path]
+        del self.mountpoint_types[path]
 
     def _is_viable_mountpoint(self, mountpoint):
         # Drop restricted types
@@ -234,9 +234,8 @@ class AutorunProcessRegistry(object):
         return detect_usb_type(mountpoint.mountpoint) is not USBType.INVALID
 
 
-
 def main():
-    logging.basicConfig(level=logging.VERBOSE)
+    logging.basicConfig(level=logging.DEBUG)
 
     fstab_reader = FSTabReader()
 
@@ -253,6 +252,7 @@ def main():
         # Tell the registry that all filesystems were unmounted, which has the
         # effect of making it do cleanup.
         registry.update_filesystems([])
+
 
 if __name__ == '__main__':
     main()
