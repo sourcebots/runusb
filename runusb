@@ -19,9 +19,7 @@ ROBOTD_LOCATION = '/var/robotd'
 
 Mountpoint = namedtuple('Mountpoint', (
     'mountpoint',
-    'device',
-    'filesystem',
-    'options',
+    'filesystem'
 ))
 
 VERBOTEN_FILESYSTEMS = (
@@ -81,13 +79,11 @@ class FSTabReader(object):
         self.handle.seek(0)
 
         for line in self.handle:
-            (device, mountpoint, filesystem, options, _, _) = line.split(' ')
+            (_, mountpoint, filesystem, _, _, _) = line.split(' ')
 
             yield Mountpoint(
                 mountpoint=mountpoint,
-                device=device,
                 filesystem=filesystem,
-                options=options,
             )
 
     def watch(self, timeout=None):
