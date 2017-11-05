@@ -13,7 +13,7 @@ LOGGER = logging.getLogger('runusb')
 PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'main.py'
 SPAWN_IMAGE = '/mnt/rootmirror'
-UPDATE_FILENAME = 'update.xz'
+UPDATE_FILENAME = 'update.tar.xz'
 ROBOTD_LOCATION = '/var/robotd'
 
 
