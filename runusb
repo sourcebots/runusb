@@ -142,7 +142,6 @@ def open_run_robot_code_process(path):
 def kill_robot_process(path, process):
     # With the mountpoint now missing the only sensible thing to do is
     # to die horribly.
-    print(get_machinename(path))
     command = ('machinectl', 'terminate', get_machinename(path))
     subprocess.call(command)
     process.wait(timeout=5)
