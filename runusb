@@ -95,7 +95,7 @@ class FSTabReader(object):
         return bool(changed)
 
 
-def update_robot(path):
+def open_update_robot_process(path):
     command = [
         'sb-update',
         path
@@ -103,7 +103,7 @@ def update_robot(path):
     return subprocess.Popen(command, stdin=subprocess.DEVNULL)
 
 
-def run_robot_code(path):
+def open_run_robot_code_process(path):
     command = [
         'systemd-nspawn',
         '--read-only',
@@ -154,13 +154,13 @@ def kill_robot_process(path, process):
 
 class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
-        USBType.ROBOT: run_robot_code,
-        USBType.UPDATE: update_robot
+        USBType.ROBOT: open_run_robot_code_process,
+        USBType.UPDATE: open_update_robot_process
     }
 
     TYPE_CLOSE_HANDLER = {
         USBType.ROBOT: kill_robot_process,
-        USBType.UPDATE: update_robot
+        USBType.UPDATE: open_update_robot_process
     }
 
     def __init__(self):
