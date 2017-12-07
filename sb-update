@@ -80,7 +80,6 @@ def main():
 
     logging.info("Rebooting.")
     subprocess.check_call(["reboot"])
-    exit()
 
 
 if __name__ == '__main__':
