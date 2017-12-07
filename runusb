@@ -19,7 +19,7 @@ ROBOTD_LOCATION = '/var/robotd'
 
 Mountpoint = namedtuple('Mountpoint', (
     'mountpoint',
-    'filesystem'
+    'filesystem',
 ))
 
 VERBOTEN_FILESYSTEMS = (
