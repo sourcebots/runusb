@@ -11,6 +11,7 @@ Architecture: all
 Depends: ${misc:Depends},
          python3,
          robotd,
+         systemd-container,
 Description: Automagic running of USB sticks
  Runs .autorun files from mounted USB sticks - or other filesystems -
  automatically, and safely containerised.
