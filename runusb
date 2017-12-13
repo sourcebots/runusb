@@ -203,8 +203,9 @@ class AutorunProcessRegistry(object):
     def _detect_dead_mountpoint_path(self, path):
         LOGGER.info("Lost mountpoint: %s", path)
         usb_type = self.mountpoint_types[path]
+        process = self.mountpoint_processes[path]
         close_handler = self.TYPE_CLOSE_HANDLER[usb_type]
-        close_handler(path)
+        close_handler(path, process)
         LOGGER.info("  -> closed process")
         del self.mountpoint_processes[path]
         del self.mountpoint_types[path]
