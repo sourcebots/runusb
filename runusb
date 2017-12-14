@@ -156,6 +156,14 @@ def kill_robot_process(path: str, process: subprocess.Popen) -> None:
         pass
 
 
+def noop_close(path, process):
+    """
+        We don't actually want to kill in the case of the update process.
+        Could lead to the robot in a broken state!
+    """
+    pass
+
+
 class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
         USBType.ROBOT: open_run_robot_code_process,
@@ -164,7 +172,7 @@ class AutorunProcessRegistry(object):
 
     TYPE_CLOSE_HANDLER = {
         USBType.ROBOT: kill_robot_process,
-        USBType.UPDATE: open_update_robot_process
+        USBType.UPDATE: noop_close
     } # type: Dict[USBType, TypeCloseHandler]
 
     def __init__(self) -> None:
@@ -208,8 +216,9 @@ class AutorunProcessRegistry(object):
     def _detect_dead_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Lost mountpoint: %s", path)
         usb_type = self.mountpoint_types[path]
+        process = self.mountpoint_processes[path]
         close_handler = self.TYPE_CLOSE_HANDLER[usb_type]
-        close_handler(path)
+        close_handler(path, process)
         LOGGER.info("  -> closed process")
         del self.mountpoint_processes[path]
         del self.mountpoint_types[path]
