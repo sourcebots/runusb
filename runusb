@@ -151,6 +151,14 @@ def kill_robot_process(path, process):
         pass
 
 
+def noop_close(path, process):
+    """
+        We don't actually want to kill in the case of the update process.
+        Could lead to the robot in a broken state!
+    """
+    pass
+
+
 class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
         USBType.ROBOT: open_run_robot_code_process,
@@ -159,7 +167,7 @@ class AutorunProcessRegistry(object):
 
     TYPE_CLOSE_HANDLER = {
         USBType.ROBOT: kill_robot_process,
-        USBType.UPDATE: open_update_robot_process
+        USBType.UPDATE: noop_close
     }
 
     def __init__(self):
