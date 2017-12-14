@@ -167,11 +167,11 @@ class AutorunProcessRegistry(object):
         USBType.UPDATE: open_update_robot_process
     } # type: Dict[USBType, TypeCloseHandler]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.mountpoint_processes = {} # type: Dict[str, subprocess.Popen]
         self.mountpoint_types = {} # type: Dict[str, USBType]
 
-    def update_filesystems(self, mountpoints: Iterator[Mountpoint]):
+    def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
         actual_mountpoint_paths = {
             x.mountpoint
             for x in mountpoints
@@ -196,7 +196,7 @@ class AutorunProcessRegistry(object):
         ):
             self._detect_dead_mountpoint_path(old_mountpoint_path)
 
-    def _detect_new_mountpoint_path(self, path):
+    def _detect_new_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Found new mountpoint: %s", path)
         usb_type = detect_usb_type(path)
         type_handler = self.TYPE_HANDLERS[usb_type]
@@ -205,7 +205,7 @@ class AutorunProcessRegistry(object):
         self.mountpoint_processes[path] = process
         self.mountpoint_types[path] = usb_type
 
-    def _detect_dead_mountpoint_path(self, path):
+    def _detect_dead_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Lost mountpoint: %s", path)
         usb_type = self.mountpoint_types[path]
         close_handler = self.TYPE_CLOSE_HANDLER[usb_type]
