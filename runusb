@@ -168,10 +168,10 @@ class AutorunProcessRegistry(object):
     } # type: Dict[USBType, TypeCloseHandler]
 
     def __init__(self):
-        self.mountpoint_processes = {} # type: Dict[str, USBType]
+        self.mountpoint_processes = {} # type: Dict[str, subprocess.Popen]
         self.mountpoint_types = {} # type: Dict[str, USBType]
 
-    def update_filesystems(self, mountpoints: List[Mountpoint]):
+    def update_filesystems(self, mountpoints: Iterator[Mountpoint]):
         actual_mountpoint_paths = {
             x.mountpoint
             for x in mountpoints
