@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-adduser --system runusb
+adduser --home /var/runusb --system runusb
 
 #DEBHELPER#
 
