@@ -100,6 +100,11 @@ def add_debs_to_local_repo_from(update_file: pathlib.Path) -> None:
         for deb_path in found_debs:
             validate_deb(deb_path)
 
+        # Add all the debs to the repo directory.
+        # Note that we do this _separately_ after the checking, so that we can
+        # be somewhat confident that either all the debs that were in the
+        # update are all in the repo or none are.
+        for deb_path in found_debs:
             logging.debug("Adding {} to internal repo".format(
                 os.path.basename(deb),
             ))
