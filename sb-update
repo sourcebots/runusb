@@ -105,9 +105,7 @@ def add_debs_to_local_repo_from(update_file: pathlib.Path) -> None:
         # be somewhat confident that either all the debs that were in the
         # update are all in the repo or none are.
         for deb_path in found_debs:
-            logging.debug("Adding {} to internal repo".format(
-                os.path.basename(deb_path),
-            ))
+            logging.debug("Adding {} to internal repo".format(deb_path.name))
             shutil.copy(deb_path, SB_DEBS)
 
 
