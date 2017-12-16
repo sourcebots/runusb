@@ -72,9 +72,9 @@ def _extract_debs(
             'tar',
             '--extract',
             '--xz',
-            '--file', update_file,
+            '--file', str(update_file),
         ],
-        cwd=working_dir,
+        cwd=str(working_dir),
     )
 
     return working_dir.glob("*.deb")
