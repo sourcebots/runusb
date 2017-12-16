@@ -1,0 +1,7 @@
+#!/bin/bash -e
+
+dpkg-divert --remove --package runusb --rename /etc/usbmount/usbmount.conf
+
+#DEBHELPER#
+
+exit 0
