@@ -106,7 +106,6 @@ def open_update_robot_process(path):
 def open_run_robot_code_process(path):
     command = [
         'systemd-nspawn',
-        '--read-only',
         '--private-network'
     ]
 
@@ -124,6 +123,9 @@ def open_run_robot_code_process(path):
 
     # Attach a machine ID, use the path as the ID
     command.extend(('--machine', get_machinename(path)))
+
+    # Run as our limited user
+    command.extend(('--user', 'runusb'))
 
     # Run the autorun file with bash -c
     command.extend(('/bin/bash', '-c'))
