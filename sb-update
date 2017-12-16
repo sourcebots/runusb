@@ -77,7 +77,7 @@ def _extract_debs(
         cwd=str(working_dir),
     )
 
-    return working_dir.glob("*.deb")
+    return list(working_dir.glob("*.deb"))
 
 
 def add_debs_to_local_repo_from(update_file: pathlib.Path) -> None:
