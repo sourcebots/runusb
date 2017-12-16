@@ -45,6 +45,22 @@ def update_and_upgrade():
     subprocess.check_call(['apt', 'upgrade', '-y'], stdout=subprocess.DEVNULL)
 
 
+def validate_deb(deb_path):
+    """
+    Validate that the given path is indeed a debian package.
+
+    Raises ``ValueError`` if the package is not valid.
+    """
+    check_deb = subprocess.call(
+        ['dpkg', '--info', deb_path],
+        stdout=subprocess.DEVNULL,
+    )
+
+    if check_deb != 0:
+        raise ValueError("file {} is not a deb file!".format(deb_path))
+
+
+
 def main():
     options = argument_parser().parse_args()
     logging.basicConfig(
@@ -66,9 +82,6 @@ def main():
 
     logging.debug("Found {} potential packages".format(len(deb_glob)))
     for deb in deb_glob:
-        check_deb = subprocess.call(['dpkg', '--info', deb], stdout=subprocess.DEVNULL)
-        if check_deb != 0:
-            raise ValueError("file {} is not a deb file!".format(deb))
         logging.debug("Adding {} to internal repo".format(os.path.basename(deb)))
         shutil.copy(deb, SB_DEBS)
 
