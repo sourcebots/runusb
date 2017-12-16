@@ -54,7 +54,7 @@ def validate_deb(deb_path: pathlib.Path) -> None:
     Raises ``ValueError`` if the package is not valid.
     """
     check_deb = subprocess.call(
-        ['dpkg', '--info', deb_path],
+        ['dpkg', '--info', str(deb_path)],
         stdout=subprocess.DEVNULL,
     )
 
