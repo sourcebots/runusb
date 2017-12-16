@@ -9,3 +9,7 @@ override_dh_systemd_start:
 override_dh_install:
 	find debian/ -name __pycache__ -type d | xargs -r rm -r
 	dh_install
+
+override_dh_installdeb:
+	dh_installdeb
+	rm debian/conffiles
