@@ -9,6 +9,7 @@ Standards-Version: 3.9.6
 Package: runusb
 Architecture: all
 Depends: ${misc:Depends},
+         adduser,
          python3,
          robotd,
          usbmount (>= 0.0.24),

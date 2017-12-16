@@ -1,0 +1,7 @@
+#!/bin/bash -e
+
+adduser --system runusb
+
+#DEBHELPER#
+
+exit 0
