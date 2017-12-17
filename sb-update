@@ -12,6 +12,7 @@ from typing import List
 
 UPDATE_FILENAME = 'update.tar.xz'
 SB_DEBS = '/sb-debs'
+SB_DEBS_PATH = pathlib.Path(SB_DEBS)
 LOG_FILE = 'update.log'
 
 
@@ -104,7 +105,6 @@ def add_debs_to_local_repo_from(update_file: pathlib.Path) -> None:
         # Note that we do this _separately_ after the checking, so that we can
         # be somewhat confident that either all the debs that were in the
         # update are all in the repo or none are.
-        SB_DEBS_PATH = pathlib.Path(SB_DEBS)
         for deb_path in found_debs:
             logging.debug("Adding {} to internal repo".format(deb_path.name))
             deb_path.rename(SB_DEBS_PATH / deb_path.name)
