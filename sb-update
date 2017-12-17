@@ -2,14 +2,17 @@
 
 import argparse
 import os
+import pathlib
 import subprocess
-from glob import glob
+import tempfile
 import shutil
 import logging
 
+from typing import List
+
 UPDATE_FILENAME = 'update.tar.xz'
-UPDATE_DIR = '/updating'
 SB_DEBS = '/sb-debs'
+SB_DEBS_PATH = pathlib.Path(SB_DEBS)
 LOG_FILE = 'update.log'
 
 
@@ -45,6 +48,68 @@ def update_and_upgrade():
     subprocess.check_call(['apt', 'upgrade', '-y'], stdout=subprocess.DEVNULL)
 
 
+def validate_deb(deb_path: pathlib.Path) -> None:
+    """
+    Validate that the given path is indeed a debian package.
+
+    Raises ``ValueError`` if the package is not valid.
+    """
+    check_deb = subprocess.call(
+        ['dpkg', '--info', str(deb_path)],
+        stdout=subprocess.DEVNULL,
+    )
+
+    if check_deb != 0:
+        raise ValueError("file {} is not a deb file!".format(deb_path))
+
+
+def _extract_debs(
+    update_file: pathlib.Path,
+    working_dir: tempfile.TemporaryDirectory,
+) -> List[pathlib.Path]:
+
+    subprocess.check_call(
+        [
+            'tar',
+            '--extract',
+            '--xz',
+            '--file', str(update_file),
+        ],
+        cwd=str(working_dir),
+    )
+
+    return list(working_dir.glob("*.deb"))
+
+
+def add_debs_to_local_repo_from(update_file: pathlib.Path) -> None:
+    """
+    Given the path to an xz-compressed tarball, copy any .deb files to the
+    ``SB_DEBS`` directory.
+    """
+
+    with tempfile.TemporaryDirectory(prefix='updates-') as updates_dir:
+        found_debs = _extract_debs(update_file, pathlib.Path(updates_dir))
+
+        if not found_debs:
+            raise FileNotFoundError(
+                "Failed to find deb files in {}, exiting".format(update_file),
+            )
+
+        logging.debug("Found {} potential packages".format(len(found_debs)))
+
+        # Check that all the debs are valid
+        for deb_path in found_debs:
+            validate_deb(deb_path)
+
+        # Add all the debs to the repo directory.
+        # Note that we do this _separately_ after the checking, so that we can
+        # be somewhat confident that either all the debs that were in the
+        # update are all in the repo or none are.
+        for deb_path in found_debs:
+            logging.debug("Adding {} to internal repo".format(deb_path.name))
+            deb_path.rename(SB_DEBS_PATH / deb_path.name)
+
+
 def main():
     options = argument_parser().parse_args()
     logging.basicConfig(
@@ -54,31 +119,17 @@ def main():
             logging.StreamHandler()
         ]
     )
-    update_file = os.path.join(options.path, UPDATE_FILENAME)
+    update_file = pathlib.Path(os.path.join(options.path, UPDATE_FILENAME))
 
     logging.info("Starting updates from {}".format(update_file))
-    os.mkdir(UPDATE_DIR)
-    subprocess.check_call(['tar', 'xJf', update_file, '-C', UPDATE_DIR])
-    os.remove(update_file)
-    deb_glob = glob("{}/*.deb".format(UPDATE_DIR))
-    if len(deb_glob) == 0:
-        raise FileNotFoundError("Can't find deb files in {}, exiting".format(UPDATE_DIR))
+    add_debs_to_local_repo_from(update_file)
 
-    logging.debug("Found {} potential packages".format(len(deb_glob)))
-    for deb in deb_glob:
-        check_deb = subprocess.call(['dpkg', '--info', deb], stdout=subprocess.DEVNULL)
-        if check_deb != 0:
-            raise ValueError("file {} is not a deb file!".format(deb))
-        logging.debug("Adding {} to internal repo".format(os.path.basename(deb)))
-        shutil.copy(deb, SB_DEBS)
+    update_file.unlink()
 
     rebuild_apt_repo()
     update_and_upgrade()
 
-    logging.info("Upgrade complete, cleaning up.")
-    shutil.rmtree(UPDATE_DIR)
-
-    logging.info("Rebooting.")
+    logging.info("Upgrade complete, rebooting.")
     subprocess.check_call(["reboot"])
 
 
