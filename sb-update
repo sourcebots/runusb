@@ -129,9 +129,7 @@ def main():
     rebuild_apt_repo()
     update_and_upgrade()
 
-    logging.info("Upgrade complete, cleaning up.")
-
-    logging.info("Rebooting.")
+    logging.info("Upgrade complete, rebooting.")
     subprocess.check_call(["reboot"])
 
 
