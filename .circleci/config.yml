@@ -1,0 +1,10 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: python:3-stretch
+    steps:
+      - checkout
+      - run: python3 -m venv venv
+      - run: venv/bin/pip install -r script/typing/requirements.txt
+      - run: venv/bin/mypy
