@@ -65,7 +65,7 @@ def validate_deb(deb_path: pathlib.Path) -> None:
 
 def _extract_debs(
     update_file: pathlib.Path,
-    working_dir: tempfile.TemporaryDirectory,
+    working_dir: pathlib.Path,
 ) -> List[pathlib.Path]:
 
     subprocess.check_call(
