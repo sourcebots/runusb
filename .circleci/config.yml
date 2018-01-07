@@ -7,4 +7,7 @@ jobs:
       - checkout
       - run: python3 -m venv venv
       - run: venv/bin/pip install -r script/typing/requirements.txt
-      - run: venv/bin/mypy
+      - run:
+          command: script/typing/check
+          environment:
+            MYPY: venv/bin/mypy
