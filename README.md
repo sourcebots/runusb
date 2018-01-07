@@ -1,6 +1,8 @@
 Automatic USB running
 =====================
 
+[![CircleCI](https://circleci.com/gh/sourcebots/runusb.svg?style=shield&circle-token=37b85813fead1813c6daf82f8d95ccb9931408df)](https://circleci.com/gh/sourcebots/runusb)
+
 Watches for mounted filesystems with `.autorun` files, and runs those files,
 well, automatically.
 
