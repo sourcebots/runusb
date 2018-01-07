@@ -3,10 +3,15 @@
 import logging
 from collections import namedtuple
 import select
+from typing import Callable, Dict, Iterator, List, NamedTuple
 from enum import Enum
 import os
 import subprocess
 import re
+
+TypeOpenHandler = Callable[[str], subprocess.Popen]
+TypeCloseHandler = Callable[[str, subprocess.Popen], None]
+
 
 LOGGER = logging.getLogger('runusb')
 
@@ -17,10 +22,10 @@ UPDATE_FILENAME = 'update.tar.xz'
 ROBOTD_LOCATION = '/var/robotd'
 
 
-Mountpoint = namedtuple('Mountpoint', (
-    'mountpoint',
-    'filesystem',
-))
+class Mountpoint(NamedTuple):
+    mountpoint: str
+    filesystem: str
+
 
 VERBOTEN_FILESYSTEMS = (
     'cgroup',
@@ -62,7 +67,7 @@ def detect_usb_type(mountpoint: str) -> USBType:
 
 
 class FSTabReader(object):
-    def __init__(self):
+    def __init__(self) -> None:
         self.handle = open(PROC_FILE)
 
     def __enter__(self):
@@ -75,7 +80,7 @@ class FSTabReader(object):
     def close(self):
         self.handle.close()
 
-    def read(self):
+    def read(self) -> Iterator[Mountpoint]:
         self.handle.seek(0)
 
         for line in self.handle:
@@ -95,7 +100,7 @@ class FSTabReader(object):
         return bool(changed)
 
 
-def open_update_robot_process(path):
+def open_update_robot_process(path: str) -> subprocess.Popen:
     command = [
         'sb-update',
         path
@@ -103,7 +108,7 @@ def open_update_robot_process(path):
     return subprocess.Popen(command, stdin=subprocess.DEVNULL)
 
 
-def open_run_robot_code_process(path):
+def open_run_robot_code_process(path: str) -> subprocess.Popen:
     command = [
         'systemd-nspawn',
         '--private-network'
@@ -141,7 +146,7 @@ def open_run_robot_code_process(path):
     return subprocess.Popen(command, stdin=subprocess.DEVNULL)
 
 
-def kill_robot_process(path, process):
+def kill_robot_process(path: str, process: subprocess.Popen) -> None:
     # With the mountpoint now missing the only sensible thing to do is
     # to die horribly.
     command = ('machinectl', 'terminate', get_machinename(path))
@@ -165,18 +170,18 @@ class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
         USBType.ROBOT: open_run_robot_code_process,
         USBType.UPDATE: open_update_robot_process
-    }
+    } # type: Dict[USBType, TypeOpenHandler]
 
     TYPE_CLOSE_HANDLER = {
         USBType.ROBOT: kill_robot_process,
         USBType.UPDATE: noop_close
-    }
+    } # type: Dict[USBType, TypeCloseHandler]
 
-    def __init__(self):
-        self.mountpoint_processes = {}
-        self.mountpoint_types = {}
+    def __init__(self) -> None:
+        self.mountpoint_processes = {} # type: Dict[str, subprocess.Popen]
+        self.mountpoint_types = {} # type: Dict[str, USBType]
 
-    def update_filesystems(self, mountpoints):
+    def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
         actual_mountpoint_paths = {
             x.mountpoint
             for x in mountpoints
@@ -201,7 +206,7 @@ class AutorunProcessRegistry(object):
         ):
             self._detect_dead_mountpoint_path(old_mountpoint_path)
 
-    def _detect_new_mountpoint_path(self, path):
+    def _detect_new_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Found new mountpoint: %s", path)
         usb_type = detect_usb_type(path)
         type_handler = self.TYPE_HANDLERS[usb_type]
@@ -210,7 +215,7 @@ class AutorunProcessRegistry(object):
         self.mountpoint_processes[path] = process
         self.mountpoint_types[path] = usb_type
 
-    def _detect_dead_mountpoint_path(self, path):
+    def _detect_dead_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Lost mountpoint: %s", path)
         usb_type = self.mountpoint_types[path]
         process = self.mountpoint_processes[path]
@@ -220,7 +225,7 @@ class AutorunProcessRegistry(object):
         del self.mountpoint_processes[path]
         del self.mountpoint_types[path]
 
-    def _is_viable_mountpoint(self, mountpoint):
+    def _is_viable_mountpoint(self, mountpoint: Mountpoint) -> bool:
         # Drop restricted types
         if mountpoint.filesystem in VERBOTEN_FILESYSTEMS:
             LOGGER.debug(
@@ -257,7 +262,7 @@ def main():
     except KeyboardInterrupt:
         # Tell the registry that all filesystems were unmounted, which has the
         # effect of making it do cleanup.
-        registry.update_filesystems([])
+        registry.update_filesystems([]) # type: ignore
 
 
 if __name__ == '__main__':
