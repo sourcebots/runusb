@@ -12,8 +12,8 @@ Depends: ${misc:Depends},
          adduser,
          python3,
          robotd,
-         usbmount (>= 0.0.24),
          systemd-container,
+         usbmount (>= 0.0.24),
 Description: Automagic running of USB sticks
  Runs .autorun files from mounted USB sticks - or other filesystems -
  automatically, and safely containerised.
