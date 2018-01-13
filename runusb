@@ -108,7 +108,7 @@ def open_update_robot_process(path: str) -> subprocess.Popen:
 def open_run_robot_code_process(path: str) -> subprocess.Popen:
     command = [
         'systemd-nspawn',
-        '--private-network'
+        '--private-network',
     ]
 
     # Specify the root directory for the nspawn container
@@ -166,12 +166,12 @@ def noop_close(path, process):
 class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
         USBType.ROBOT: open_run_robot_code_process,
-        USBType.UPDATE: open_update_robot_process
+        USBType.UPDATE: open_update_robot_process,
     }  # type: Dict[USBType, TypeOpenHandler]
 
     TYPE_CLOSE_HANDLER = {
         USBType.ROBOT: kill_robot_process,
-        USBType.UPDATE: noop_close
+        USBType.UPDATE: noop_close,
     }  # type: Dict[USBType, TypeCloseHandler]
 
     def __init__(self) -> None:
