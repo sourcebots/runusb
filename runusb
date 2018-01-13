@@ -101,10 +101,7 @@ class FSTabReader(object):
 
 
 def open_update_robot_process(path: str) -> subprocess.Popen:
-    command = [
-        'sb-update',
-        path
-    ]
+    command = ['sb-update', path]
     return subprocess.Popen(command, stdin=subprocess.DEVNULL)
 
 
