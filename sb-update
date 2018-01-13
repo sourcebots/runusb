@@ -25,6 +25,7 @@ def argument_parser():
         'path',
         help="path to usb drive",
         action='store',
+        type=pathlib.Path,
     )
     return parser
 
@@ -115,11 +116,11 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG,
         handlers=[
-            logging.FileHandler(os.path.join(options.path, LOG_FILE)),
+            logging.FileHandler(options.path / LOG_FILE),
             logging.StreamHandler()
         ]
     )
-    update_file = pathlib.Path(os.path.join(options.path, UPDATE_FILENAME))
+    update_file = options.path / UPDATE_FILENAME
 
     logging.info("Starting updates from {}".format(update_file))
     add_debs_to_local_repo_from(update_file)
