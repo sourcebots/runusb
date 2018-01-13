@@ -6,7 +6,12 @@ jobs:
     steps:
       - checkout
       - run: python3 -m venv venv
+      - run: venv/bin/pip install -r script/linting/requirements.txt
       - run: venv/bin/pip install -r script/typing/requirements.txt
+      - run:
+          command: script/linting/lint
+          environment:
+            FLAKE8: venv/bin/flake8
       - run:
           command: script/typing/check
           environment:
