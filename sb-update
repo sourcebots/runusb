@@ -114,8 +114,8 @@ def main():
         level=logging.DEBUG,
         handlers=[
             logging.FileHandler(os.path.join(options.path, LOG_FILE)),
-            logging.StreamHandler()
-        ]
+            logging.StreamHandler(),
+        ],
     )
     update_file = pathlib.Path(os.path.join(options.path, UPDATE_FILENAME))
 
