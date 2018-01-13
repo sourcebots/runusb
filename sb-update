@@ -41,11 +41,17 @@ def rebuild_apt_repo():
 
 def update_and_upgrade():
     logging.debug("Updating Repos")
-    subprocess.check_call(['apt', 'update', '-y'], stdout=subprocess.DEVNULL)
-    logging.debug(subprocess.check_output(['apt', 'list', '--upgradable']))
+    subprocess.check_call(
+        ['apt-get', 'update', '--yes'],
+        stdout=subprocess.DEVNULL,
+    )
+    logging.debug(subprocess.check_output(['apt-get', 'upgrade', '--assume-no']))
 
     logging.debug("Performing update")
-    subprocess.check_call(['apt', 'upgrade', '-y'], stdout=subprocess.DEVNULL)
+    subprocess.check_call(
+        ['apt-get', 'upgrade', '--yes'],
+        stdout=subprocess.DEVNULL,
+    )
 
 
 def validate_deb(deb_path: pathlib.Path) -> None:
