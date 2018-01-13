@@ -6,7 +6,7 @@ import re
 import select
 import subprocess
 from enum import Enum
-from typing import Callable, Iterator, NamedTuple
+from typing import Callable, Dict, Iterator, NamedTuple  # noqa: F401
 
 TypeOpenHandler = Callable[[str], subprocess.Popen]
 TypeCloseHandler = Callable[[str, subprocess.Popen], None]
