@@ -170,16 +170,16 @@ class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
         USBType.ROBOT: open_run_robot_code_process,
         USBType.UPDATE: open_update_robot_process
-    } # type: Dict[USBType, TypeOpenHandler]
+    }  # type: Dict[USBType, TypeOpenHandler]
 
     TYPE_CLOSE_HANDLER = {
         USBType.ROBOT: kill_robot_process,
         USBType.UPDATE: noop_close
-    } # type: Dict[USBType, TypeCloseHandler]
+    }  # type: Dict[USBType, TypeCloseHandler]
 
     def __init__(self) -> None:
-        self.mountpoint_processes = {} # type: Dict[str, subprocess.Popen]
-        self.mountpoint_types = {} # type: Dict[str, USBType]
+        self.mountpoint_processes = {}  # type: Dict[str, subprocess.Popen]
+        self.mountpoint_types = {}  # type: Dict[str, USBType]
 
     def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
         actual_mountpoint_paths = {
@@ -262,7 +262,7 @@ def main():
     except KeyboardInterrupt:
         # Tell the registry that all filesystems were unmounted, which has the
         # effect of making it do cleanup.
-        registry.update_filesystems([]) # type: ignore
+        registry.update_filesystems([])  # type: ignore
 
 
 if __name__ == '__main__':
