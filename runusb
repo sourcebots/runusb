@@ -22,9 +22,10 @@ UPDATE_FILENAME = 'update.tar.xz'
 ROBOTD_LOCATION = '/var/robotd'
 
 
-class Mountpoint(NamedTuple):
-    mountpoint: str
-    filesystem: str
+Mountpoint = NamedTuple('Mountpoint', [
+    ('mountpoint', str),
+    ('filesystem', str),
+])
 
 
 VERBOTEN_FILESYSTEMS = (
