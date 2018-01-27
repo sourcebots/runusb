@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import lzma  # type: ignore
 import pathlib
 import subprocess
 import tempfile
@@ -30,21 +31,12 @@ def argument_parser():
 def rebuild_apt_repo():
     logging.debug("Rebuilding apt repo")
 
-    with (SB_DEBS_PATH / 'Packages.xz').open('wb') as packages_xz:
-        scanpackages_process = subprocess.Popen(
+    with lzma.open(SB_DEBS_PATH / 'Packages.xz', mode='wb') as packages_xz:
+        subprocess.check_call(
             ['dpkg-scanpackages', '.', '/dev/null'],
             cwd=SB_DEBS,
-            stdout=subprocess.PIPE,
-        )
-        subprocess.check_call(
-            ['xz', '-3', '-'],
-            stdin=scanpackages_process.stdout,
             stdout=packages_xz,
         )
-        retcode = scanpackages_process.wait()
-
-        if retcode:
-            raise subprocess.CalledProcessError(retcode, 'dpkg-scanpackages')
 
 
 def update_and_upgrade():

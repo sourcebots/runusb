@@ -19,7 +19,6 @@ Depends: ${misc:Depends},
          systemd-sysv,
          tar,
          usbmount (>= 0.0.24),
-         xz-utils,
 Description: Automagic running of USB sticks
  Runs .autorun files from mounted USB sticks - or other filesystems -
  automatically, and safely containerised.
