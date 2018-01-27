@@ -111,6 +111,11 @@ def open_run_robot_code_process(path: str) -> subprocess.Popen:
         '--private-network',
     ]
 
+    # Drop the capability to create and manage network devices.
+    # --private-network automatically adds this capability, but
+    # we don't want it.
+    command.extend(('--drop-capability', 'CAP_NET_ADMIN'))
+
     # Specify the root directory for the nspawn container
     command.extend(('--directory', SPAWN_IMAGE))
 
