@@ -2,7 +2,7 @@
 
 import argparse
 import logging
-import lzma
+import lzma  # type: ignore
 import pathlib
 import subprocess
 import tempfile
