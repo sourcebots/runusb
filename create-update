@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z "$1" ]
+if [ -z "$1" ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]
 then
     echo "Usage $0 DEB [DEB [..]]"
     exit 1
