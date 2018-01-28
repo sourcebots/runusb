@@ -40,20 +40,35 @@ def rebuild_apt_repo():
 
 
 def update_and_upgrade():
-    logging.debug("Updating Repos")
-    subprocess.check_call(
-        ['apt-get', 'update', '--yes'],
-        stdout=subprocess.DEVNULL,
-    )
-    logging.debug(
-        subprocess.check_output(['apt-get', 'upgrade', '--assume-no']),
-    )
+    with tempfile.NamedTemporaryFile(
+        suffix='.sourcebots.list',
+        mode='w',
+    ) as source_list:
+        source_list.write('deb [trusted=yes] file:{} ./\n'.format(SB_DEBS))
 
-    logging.debug("Performing update")
-    subprocess.check_call(
-        ['apt-get', 'upgrade', '--yes'],
-        stdout=subprocess.DEVNULL,
-    )
+        # Tell apt-get to only consider the local repo we've put our updates into
+        base_command = (
+            'apt-get',
+            '--option',
+            'Dir::Etc::SourceParts=',
+            '--option',
+            'Dir::Etc::SourceList={}'.format(source_list.name),
+        )
+
+        logging.debug("Updating repo")
+        subprocess.check_call(
+            base_command + ('update', '--yes'),
+            stdout=subprocess.DEVNULL,
+        )
+        logging.debug(
+            subprocess.check_output(base_command + ('upgrade', '--assume-no')),
+        )
+
+        logging.debug("Performing update")
+        subprocess.check_call(
+            base_command + ('upgrade', '--yes'),
+            stdout=subprocess.DEVNULL,
+        )
 
 
 def validate_deb(deb_path: pathlib.Path) -> None:
