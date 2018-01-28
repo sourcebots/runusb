@@ -11,13 +11,11 @@ Architecture: all
 Depends: ${misc:Depends},
          adduser,
          apt,
-         dpkg,
          dpkg-dev,
          python3,
          robotd,
          systemd-container,
          systemd-sysv,
-         tar,
          usbmount (>= 0.0.24),
 Description: Automagic running of USB sticks
  Runs .autorun files from mounted USB sticks - or other filesystems -
