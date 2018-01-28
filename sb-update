@@ -31,7 +31,7 @@ def argument_parser():
 def rebuild_apt_repo():
     logging.debug("Rebuilding apt repo")
 
-    with lzma.open(SB_DEBS_PATH / 'Packages.xz', mode='wb') as packages_xz:
+    with lzma.open(str(SB_DEBS_PATH / 'Packages.xz'), mode='wb') as packages_xz:
         subprocess.check_call(
             ['dpkg-scanpackages', '.', '/dev/null'],
             cwd=SB_DEBS,
@@ -121,7 +121,7 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG,
         handlers=[
-            logging.FileHandler(options.path / LOG_FILE),
+            logging.FileHandler(str(options.path / LOG_FILE)),
             logging.StreamHandler(),
         ],
     )
