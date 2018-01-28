@@ -45,7 +45,9 @@ def update_and_upgrade():
         ['apt-get', 'update', '--yes'],
         stdout=subprocess.DEVNULL,
     )
-    logging.debug(subprocess.check_output(['apt-get', 'upgrade', '--assume-no']))
+    logging.debug(
+        subprocess.check_output(['apt-get', 'upgrade', '--assume-no']),
+    )
 
     logging.debug("Performing update")
     subprocess.check_call(
