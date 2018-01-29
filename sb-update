@@ -32,11 +32,13 @@ def rebuild_apt_repo():
     logging.debug("Rebuilding apt repo")
 
     with lzma.open(str(SB_DEBS_PATH / 'Packages.xz'), mode='wb') as packages_xz:
-        subprocess.check_call(
+        # Note: we can't just pass the file through to the stdout of the
+        # subprocess as that results in the underlying (i.e: non-compression
+        # wrapped) file descriptor being passed to the subprocess.
+        packages_xz.write(subprocess.check_output(
             ['dpkg-scanpackages', '.', '/dev/null'],
             cwd=SB_DEBS,
-            stdout=packages_xz,
-        )
+        ))
 
 
 def update_and_upgrade():
