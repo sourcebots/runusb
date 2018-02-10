@@ -62,9 +62,8 @@ def update_and_upgrade():
             base_command + ('update', '--yes'),
             stdout=subprocess.DEVNULL,
         )
-        logging.debug(
-            subprocess.check_output(base_command + ('upgrade', '--assume-no')),
-        )
+        output = subprocess.check_output(base_command + ('upgrade', '--assume-no'))
+        logging.debug(output.decode('utf-8', errors='replace'))
 
         logging.debug("Performing update")
         subprocess.check_call(
