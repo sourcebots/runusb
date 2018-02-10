@@ -16,12 +16,12 @@ LOG_FILE = 'update.log'
 
 def argument_parser():
     parser = argparse.ArgumentParser(
-        description="Automatically run from mountpoints with .autorun",
+        description="Install updates from an LZMA archive of debian packages",
     )
 
     parser.add_argument(
         'path',
-        help="path to usb drive",
+        help="path to directory containing the {}".format(UPDATE_FILENAME),
         action='store',
         type=pathlib.Path,
     )
