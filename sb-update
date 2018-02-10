@@ -143,18 +143,22 @@ def main():
             logging.StreamHandler(),
         ],
     )
-    update_file = options.path / UPDATE_FILENAME
+    try:
+        update_file = options.path / UPDATE_FILENAME
 
-    logging.info("Starting updates from {}".format(update_file))
-    add_debs_to_local_repo_from(update_file)
+        logging.info("Starting updates from {}".format(update_file))
+        add_debs_to_local_repo_from(update_file)
 
-    update_file.unlink()
+        update_file.unlink()
 
-    rebuild_apt_repo()
-    update_and_upgrade()
+        rebuild_apt_repo()
+        update_and_upgrade()
 
-    logging.info("Upgrade complete, rebooting.")
-    subprocess.check_call(["reboot"])
+        logging.info("Upgrade complete, rebooting.")
+        subprocess.check_call(["reboot"])
+    except Exception:
+        logging.exception("Upgrade failed")
+        raise
 
 
 if __name__ == '__main__':
