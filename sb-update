@@ -57,6 +57,7 @@ def update_and_upgrade():
         mode='w',
     ) as source_list:
         source_list.write('deb [trusted=yes] file:{} ./\n'.format(SB_DEBS))
+        source_list.flush()
 
         # Tell apt-get to only consider the local repo we've put our updates into
         base_command = (
