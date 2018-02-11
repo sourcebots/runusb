@@ -62,7 +62,7 @@ def check_output_with_log_on_error(
             command,
             universal_newlines=True,
             stderr=subprocess.STDOUT,
-        ).strip()
+        ).strip()  # type: str # (universal_newlines does the conversion for us)
 
         if expected_returncode != 0:
             raise subprocess.CalledProcessError(0, command, output)
@@ -70,7 +70,10 @@ def check_output_with_log_on_error(
         return output
     except subprocess.CalledProcessError as ex:
         if ex.returncode == expected_returncode:
-            return ex.output
+            # Mypy thinks that ex.output is Any. Strictly ex.output is
+            # Optional[str], however our use-cases mean that it's actually
+            # always a str.
+            return ex.output  # type: ignore
 
         logging.error("Command {!r} failed:\n{}".format(
             command,
