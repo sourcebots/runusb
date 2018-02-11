@@ -53,6 +53,8 @@ def rebuild_apt_repo():
 
 def check_output_with_log_on_error(
     command: Sequence[str],
+    *,
+    expected_returncode: int=0
 ) -> str:
     logging.debug("Running {!r}".format(command))
     try:
@@ -62,8 +64,14 @@ def check_output_with_log_on_error(
             stderr=subprocess.STDOUT,
         ).strip()
 
+        if expected_returncode != 0:
+            raise subprocess.CalledProcessError(0, command, output)
+
         return output
     except subprocess.CalledProcessError as ex:
+        if ex.returncode == expected_returncode:
+            return ex.output
+
         logging.error("Command {!r} failed:\n{}".format(
             command,
             ex.output,
@@ -93,6 +101,10 @@ def update_and_upgrade():
 
         upgrade_summary = check_output_with_log_on_error(
             base_command + ('upgrade', '--assume-no'),
+            # Adding '--assume-no' causes an Abort exit, which has a non-zero
+            # exit code. Unfortunately there doesn't seem to be an alternative
+            # mechanism to list the available updates via apt-get.
+            expected_returncode=1,
         )
         logging.debug(upgrade_summary)
 
