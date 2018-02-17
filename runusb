@@ -104,7 +104,7 @@ def open_update_robot_process(path: str) -> subprocess.Popen:
     return subprocess.Popen(
         ['sb-update', path],
         stdin=subprocess.DEVNULL,
-        # Launch the udpate process into a new process group so that updates to
+        # Launch the update process into a new process group so that updates to
         # `runusb` don't kill the in-flight update process.
         preexec_fn=os.setpgrp,
     )
