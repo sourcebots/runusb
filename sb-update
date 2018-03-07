@@ -3,7 +3,7 @@
 import argparse
 import hashlib
 import logging
-import lzma  # type: ignore
+import lzma
 import pathlib
 import subprocess
 import tempfile
