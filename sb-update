@@ -53,8 +53,6 @@ def rebuild_apt_repo():
 
 def check_output_with_log_on_error(
     command: Sequence[str],
-    *,
-    expected_returncode: int=0
 ) -> str:
     logging.debug("Running {!r}".format(command))
     try:
@@ -64,17 +62,8 @@ def check_output_with_log_on_error(
             stderr=subprocess.STDOUT,
         ).strip()  # type: str # (universal_newlines does the conversion for us)
 
-        if expected_returncode != 0:
-            raise subprocess.CalledProcessError(0, command, output)
-
         return output
     except subprocess.CalledProcessError as ex:
-        if ex.returncode == expected_returncode:
-            # Mypy thinks that ex.output is Any. Strictly ex.output is
-            # Optional[str], however our use-cases mean that it's actually
-            # always a str.
-            return ex.output  # type: ignore
-
         logging.error("Command {!r} failed:\n{}".format(
             command,
             ex.output,
@@ -102,12 +91,9 @@ def update_and_upgrade():
         logging.debug("Updating repo")
         check_output_with_log_on_error(base_command + ('update', '--yes'))
 
+        logging.debug("Dry run")
         upgrade_summary = check_output_with_log_on_error(
-            base_command + ('upgrade', '--assume-no'),
-            # Adding '--assume-no' causes an Abort exit, which has a non-zero
-            # exit code. Unfortunately there doesn't seem to be an alternative
-            # mechanism to list the available updates via apt-get.
-            expected_returncode=1,
+            base_command + ('upgrade', '--dry-run'),
         )
         logging.debug(upgrade_summary)
 
