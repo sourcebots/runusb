@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 import argparse
+import hashlib
 import logging
-import lzma  # type: ignore
+import lzma
 import pathlib
 import subprocess
 import tempfile
-from typing import List
+from typing import List, Sequence
 
 UPDATE_FILENAME = 'update.tar.xz'
 SB_DEBS = '/sb-debs'
@@ -16,15 +17,24 @@ LOG_FILE = 'update.log'
 
 def argument_parser():
     parser = argparse.ArgumentParser(
-        description="Automatically run from mountpoints with .autorun",
+        description="Install updates from an LZMA archive of debian packages",
     )
 
     parser.add_argument(
         'path',
-        help="path to usb drive",
+        help="path to directory containing the {}".format(UPDATE_FILENAME),
         action='store',
         type=pathlib.Path,
     )
+
+    parser.add_argument(
+        '--no-reboot',
+        help="Don't reboot after installing updates (useful for debugging this script)",
+        action='store_false',
+        dest='reboot',
+        default=True,
+    )
+
     return parser
 
 
@@ -41,12 +51,44 @@ def rebuild_apt_repo():
         ))
 
 
+def check_output_with_log_on_error(
+    command: Sequence[str],
+    *,
+    expected_returncode: int=0
+) -> str:
+    logging.debug("Running {!r}".format(command))
+    try:
+        output = subprocess.check_output(
+            command,
+            universal_newlines=True,
+            stderr=subprocess.STDOUT,
+        ).strip()  # type: str # (universal_newlines does the conversion for us)
+
+        if expected_returncode != 0:
+            raise subprocess.CalledProcessError(0, command, output)
+
+        return output
+    except subprocess.CalledProcessError as ex:
+        if ex.returncode == expected_returncode:
+            # Mypy thinks that ex.output is Any. Strictly ex.output is
+            # Optional[str], however our use-cases mean that it's actually
+            # always a str.
+            return ex.output  # type: ignore
+
+        logging.error("Command {!r} failed:\n{}".format(
+            command,
+            ex.output,
+        ))
+        raise
+
+
 def update_and_upgrade():
     with tempfile.NamedTemporaryFile(
         suffix='.sourcebots.list',
         mode='w',
     ) as source_list:
         source_list.write('deb [trusted=yes] file:{} ./\n'.format(SB_DEBS))
+        source_list.flush()
 
         # Tell apt-get to only consider the local repo we've put our updates into
         base_command = (
@@ -58,18 +100,23 @@ def update_and_upgrade():
         )
 
         logging.debug("Updating repo")
-        subprocess.check_call(
-            base_command + ('update', '--yes'),
-            stdout=subprocess.DEVNULL,
+        check_output_with_log_on_error(base_command + ('update', '--yes'))
+
+        upgrade_summary = check_output_with_log_on_error(
+            base_command + ('upgrade', '--assume-no'),
+            # Adding '--assume-no' causes an Abort exit, which has a non-zero
+            # exit code. Unfortunately there doesn't seem to be an alternative
+            # mechanism to list the available updates via apt-get.
+            expected_returncode=1,
         )
-        output = subprocess.check_output(base_command + ('upgrade', '--assume-no'))
-        logging.debug(output.decode('utf-8', errors='replace'))
+        logging.debug(upgrade_summary)
 
         logging.debug("Performing update")
-        subprocess.check_call(
-            base_command + ('upgrade', '--yes'),
-            stdout=subprocess.DEVNULL,
-        )
+        check_output_with_log_on_error(base_command + ('upgrade', '--yes'))
+
+
+def hash_file(path: pathlib.Path) -> str:
+    return hashlib.sha1(path.read_bytes()).hexdigest()
 
 
 def validate_deb(deb_path: pathlib.Path) -> None:
@@ -143,18 +190,27 @@ def main():
             logging.StreamHandler(),
         ],
     )
-    update_file = options.path / UPDATE_FILENAME
+    try:
+        update_file = options.path / UPDATE_FILENAME
 
-    logging.info("Starting updates from {}".format(update_file))
-    add_debs_to_local_repo_from(update_file)
+        logging.info("Starting updates from {} ({})".format(
+            update_file,
+            hash_file(update_file),
+        ))
+        add_debs_to_local_repo_from(update_file)
 
-    update_file.unlink()
+        update_file.unlink()
 
-    rebuild_apt_repo()
-    update_and_upgrade()
+        rebuild_apt_repo()
+        update_and_upgrade()
 
-    logging.info("Upgrade complete, rebooting.")
-    subprocess.check_call(["reboot"])
+        logging.info("Upgrade complete.")
+        if options.reboot:
+            logging.info("Rebooting...")
+            subprocess.check_call(["reboot"])
+    except Exception:
+        logging.exception("Upgrade failed")
+        raise
 
 
 if __name__ == '__main__':
