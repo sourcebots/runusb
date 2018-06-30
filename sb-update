@@ -27,6 +27,10 @@ def argument_parser():
         type=pathlib.Path,
     )
 
+    # Note: the `runusb` package is configured not to be restarted as part of
+    # the upgrade process, instead relying on that being handled by the system
+    # being rebooted afterwards.
+    # Changing this? Also change that configuration in `debian/rules`.
     parser.add_argument(
         '--no-reboot',
         help="Don't reboot after installing updates (useful for debugging this script)",
