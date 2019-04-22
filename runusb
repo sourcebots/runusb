@@ -193,15 +193,15 @@ class AutorunProcessRegistry(object):
 
         # Handle newly detected filesystems
         for new_mountpoint_path in (
-                actual_mountpoint_paths -
-                expected_mountpoint_paths
+            actual_mountpoint_paths
+            - expected_mountpoint_paths
         ):
             self._detect_new_mountpoint_path(new_mountpoint_path)
 
         # Handle now-dead filesystems
         for old_mountpoint_path in (
-                expected_mountpoint_paths -
-                actual_mountpoint_paths
+            expected_mountpoint_paths
+            - actual_mountpoint_paths
         ):
             self._detect_dead_mountpoint_path(old_mountpoint_path)
 
