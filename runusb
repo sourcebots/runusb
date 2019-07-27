@@ -105,6 +105,7 @@ def open_run_robot_code_process(path: str) -> subprocess.Popen:
     return subprocess.Popen(
         'script --quiet -ec "python3 {0}" -f log.txt'.format(ROBOT_FILE),
         stdin=subprocess.DEVNULL,
+        shell=True,
         cwd=path,
     )
 
