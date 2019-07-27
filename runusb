@@ -2,7 +2,6 @@
 
 import logging
 import os
-import re
 import select
 import subprocess
 from enum import Enum
@@ -37,10 +36,6 @@ VERBOTEN_FILESYSTEMS = (
     'proc',
     'sysfs',
 )
-
-
-def get_machinename(path):
-    return re.sub(r'[^\w]', r'', path).strip('_')
 
 
 class USBType(Enum):
@@ -107,48 +102,15 @@ def open_update_robot_process(path: str) -> subprocess.Popen:
 
 
 def open_run_robot_code_process(path: str) -> subprocess.Popen:
-    command = [
-        'systemd-nspawn',
-        '--private-network',
-    ]
-
-    # Specify the root directory for the nspawn container
-    command.extend(('--directory', SPAWN_IMAGE))
-
-    # Mount a tmpfs as /tmp
-    command.extend(('--tmpfs', '/tmp'))
-
-    # Bind-mount the actual path
-    command.extend(('--bind', path))
-
-    # Bind-mount `/dev` to talk to USB devices
-    command.extend(('--bind', '/dev'))
-
-    # Attach a machine ID, use the path as the ID
-    command.extend(('--machine', get_machinename(path)))
-
-    # Run as our limited user
-    command.extend(('--user', 'runusb'))
-
-    # Run the autorun file with bash -c
-    command.extend(('/bin/bash', '-c'))
-
-    # cd to the mountpoint and run the autorun file
-    command.append(
-        'cd "{mountpoint}" ; script --quiet -ec "python3 {autorun}" -f log.txt'.format(
-            mountpoint=path,
-            autorun=ROBOT_FILE,
-        ),
+    return subprocess.Popen(
+        'script --quiet -ec "python3 {autorun}" -f log.txt'.format(ROBOT_FILE),
+        stdin=subprocess.DEVNULL,
+        cwd=path,
     )
-
-    return subprocess.Popen(command, stdin=subprocess.DEVNULL)
 
 
 def kill_robot_process(path: str, process: subprocess.Popen) -> None:
-    # With the mountpoint now missing the only sensible thing to do is
-    # to die horribly.
-    command = ('machinectl', 'terminate', get_machinename(path))
-    subprocess.call(command)
+    process.terminate()
     process.wait(timeout=5)
     try:
         process.kill()
