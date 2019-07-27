@@ -103,7 +103,7 @@ def open_update_robot_process(path: str) -> subprocess.Popen:
 
 def open_run_robot_code_process(path: str) -> subprocess.Popen:
     return subprocess.Popen(
-        'script --quiet -ec "python3 {autorun}" -f log.txt'.format(ROBOT_FILE),
+        'script --quiet -ec "python3 {0}" -f log.txt'.format(ROBOT_FILE),
         stdin=subprocess.DEVNULL,
         cwd=path,
     )
