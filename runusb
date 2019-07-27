@@ -125,6 +125,9 @@ def open_run_robot_code_process(path: str) -> subprocess.Popen:
     # Bind-mount the actual path
     command.extend(('--bind', path))
 
+    # Bind-mount `/dev` to talk to USB devices
+    command.extend(('--bind', '/dev'))
+
     # Attach a machine ID, use the path as the ID
     command.extend(('--machine', get_machinename(path)))
 
