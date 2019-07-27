@@ -6,9 +6,6 @@ Automatic USB running
 Watches for mounted filesystems with `.autorun` files, and runs those files,
 well, automatically.
 
-The files are run in a systemd nspawn container, which limits the havoc one
-can accidentally wreak, and causes consistent behaviour when shutting down.
-
 Building the Debian package
 ---------------------------
 
