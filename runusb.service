@@ -5,7 +5,7 @@ After=robotd.service
 Requires=robotd.service
 
 [Service]
-ExecStart=/usr/bin/runusb --verbose --bind /var/robotd
+ExecStart=/usr/bin/runusb
 
 [Install]
 WantedBy=multi-user.target
