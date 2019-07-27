@@ -40,7 +40,7 @@ VERBOTEN_FILESYSTEMS = (
 
 
 def get_machinename(path):
-    return re.sub(r'[^\w]', r'_', path).strip('_')
+    return re.sub(r'[^\w]', r'', path).strip('_')
 
 
 class USBType(Enum):
