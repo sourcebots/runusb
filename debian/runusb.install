@@ -1,5 +1,4 @@
 runusb                usr/bin
 runusb.service        lib/systemd/system/
-mnt-rootmirror.mount  lib/systemd/system/
 sb-update             usr/bin
 usbmount.conf         etc/usbmount

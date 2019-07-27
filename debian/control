@@ -13,7 +13,6 @@ Depends: ${misc:Depends},
          apt,
          dpkg-dev,
          python3,
-         systemd-container,
          systemd-sysv,
          usbmount (>= 0.0.24),
 Description: Automagic running of USB sticks

@@ -1,6 +1,5 @@
 [Unit]
 Description=Automatic running of USB devices
-Requires=mnt-rootmirror.mount
 
 [Service]
 ExecStart=/usr/bin/runusb
