@@ -18,7 +18,6 @@ PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'main.py'
 SPAWN_IMAGE = '/mnt/rootmirror'
 UPDATE_FILENAME = 'update.tar.xz'
-ROBOTD_LOCATION = '/var/robotd'
 
 
 Mountpoint = NamedTuple('Mountpoint', [
@@ -115,9 +114,6 @@ def open_run_robot_code_process(path: str) -> subprocess.Popen:
 
     # Specify the root directory for the nspawn container
     command.extend(('--directory', SPAWN_IMAGE))
-
-    # Bring in any requested bind mounts
-    command.extend(('--bind', ROBOTD_LOCATION))
 
     # Mount a tmpfs as /tmp
     command.extend(('--tmpfs', '/tmp'))
