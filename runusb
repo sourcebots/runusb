@@ -112,11 +112,11 @@ def open_run_robot_code_process(path: str) -> subprocess.Popen:
 
 def kill_robot_process(path: str, process: subprocess.Popen) -> None:
     process.terminate()
-    process.wait(timeout=5)
     try:
-        process.kill()
-    except ProcessLookupError:
+        process.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
         pass
+    process.kill()
 
 
 def noop_close(path, process):
