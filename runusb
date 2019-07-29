@@ -106,6 +106,7 @@ def open_run_robot_code_process(path: str) -> subprocess.Popen:
         ["python3", "-u", ROBOT_FILE],
         stdin=subprocess.DEVNULL,
         stdout=open(os.path.join(path, "log.txt"), "w"),
+        stderr=subprocess.STDOUT,
         cwd=path,
     )
 
