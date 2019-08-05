@@ -6,7 +6,7 @@ import select
 import subprocess
 from abc import ABCMeta, abstractmethod
 from enum import Enum
-from typing import Dict, Iterator, NamedTuple, Type  # noqa: F401
+from typing import Dict, Iterator, NamedTuple, Optional, Type  # noqa: F401
 
 LOGGER = logging.getLogger('runusb')
 
@@ -109,13 +109,36 @@ class USBHandler(metaclass=ABCMeta):
 
 class RobotUSBHandler(USBHandler):
     def __init__(self, registry: 'AutorunProcessRegistry', mountpoint_path: str):
+        env = dict(os.environ)
+        metadata_path = self._find_metadata_usb(registry)
+        if metadata_path is not None:
+            env["SBOT_METADATA_PATH"] = metadata_path
+
         self.process = subprocess.Popen(
             ["python3", "-u", ROBOT_FILE],
             stdin=subprocess.DEVNULL,
             stdout=open(os.path.join(mountpoint_path, "log.txt"), "w"),
             stderr=subprocess.STDOUT,
             cwd=mountpoint_path,
+            env=env,
         )
+
+    def _find_metadata_usb(self, registry: 'AutorunProcessRegistry') -> Optional[str]:
+        paths = [
+            path
+            for path, usb_type in registry.mountpoint_types.items()
+            if usb_type == USBType.METADATA
+        ]
+        if not paths:
+            return None
+        if len(paths) > 1:
+            LOGGER.warn(
+                "Multiple metadata USBs detected (this is not supported!): %s",
+                ", ".join(paths),
+            )
+        path = paths[0]
+        LOGGER.debug("Detected metadata at %s", path)
+        return path
 
     def close(self) -> None:
         self.process.terminate()
