@@ -4,12 +4,9 @@ import logging
 import os
 import select
 import subprocess
+from abc import ABCMeta, abstractmethod
 from enum import Enum
-from typing import Callable, Dict, Iterator, NamedTuple  # noqa: F401
-
-TypeOpenHandler = Callable[[str], subprocess.Popen]
-TypeCloseHandler = Callable[[str, subprocess.Popen], None]
-
+from typing import Dict, Iterator, NamedTuple, Type  # noqa: F401
 
 LOGGER = logging.getLogger('runusb')
 
@@ -94,53 +91,58 @@ class FSTabReader(object):
         return bool(changed)
 
 
-def open_update_robot_process(path: str) -> subprocess.Popen:
-    return subprocess.Popen(
-        ['sb-update', path],
-        stdin=subprocess.DEVNULL,
-    )
-
-
-def open_run_robot_code_process(path: str) -> subprocess.Popen:
-    return subprocess.Popen(
-        ["python3", "-u", ROBOT_FILE],
-        stdin=subprocess.DEVNULL,
-        stdout=open(os.path.join(path, "log.txt"), "w"),
-        stderr=subprocess.STDOUT,
-        cwd=path,
-    )
-
-
-def kill_robot_process(path: str, process: subprocess.Popen) -> None:
-    process.terminate()
-    try:
-        process.communicate(timeout=5)
-    except subprocess.TimeoutExpired:
+class USBHandler(metaclass=ABCMeta):
+    @abstractmethod
+    def __init__(self, mountpoint_path: str):
         pass
-    process.kill()
+
+    @abstractmethod
+    def close(self) -> None:
+        pass
 
 
-def noop_close(path, process):
-    """
-        We don't actually want to kill in the case of the update process.
-        Could lead to the robot in a broken state!
-    """
-    pass
+class RobotUSBHandler(USBHandler):
+    def __init__(self, mountpoint_path: str):
+        self.process = subprocess.Popen(
+            ["python3", "-u", ROBOT_FILE],
+            stdin=subprocess.DEVNULL,
+            stdout=open(os.path.join(mountpoint_path, "log.txt"), "w"),
+            stderr=subprocess.STDOUT,
+            cwd=mountpoint_path,
+        )
+
+    def close(self) -> None:
+        self.process.terminate()
+        try:
+            self.process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        self.process.kill()
+
+
+class UpdateUSBHandler(USBHandler):
+    def __init__(self, mountpoint_path: str):
+        self.process = subprocess.Popen(
+            ['sb-update', mountpoint_path],
+            stdin=subprocess.DEVNULL,
+        )
+
+    def close(self) -> None:
+        """
+            We don't actually want to kill in the case of the update process.
+            Could lead to the robot in a broken state!
+        """
+        pass
 
 
 class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
-        USBType.ROBOT: open_run_robot_code_process,
-        USBType.UPDATE: open_update_robot_process,
-    }  # type: Dict[USBType, TypeOpenHandler]
-
-    TYPE_CLOSE_HANDLER = {
-        USBType.ROBOT: kill_robot_process,
-        USBType.UPDATE: noop_close,
-    }  # type: Dict[USBType, TypeCloseHandler]
+        USBType.ROBOT: RobotUSBHandler,
+        USBType.UPDATE: UpdateUSBHandler,
+    }  # type: Dict[USBType, Type[USBHandler]]
 
     def __init__(self) -> None:
-        self.mountpoint_processes = {}  # type: Dict[str, subprocess.Popen]
+        self.mountpoint_handlers = {}  # type: Dict[str, USBHandler]
         self.mountpoint_types = {}  # type: Dict[str, USBType]
 
     def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
@@ -151,7 +153,7 @@ class AutorunProcessRegistry(object):
         }
 
         expected_mountpoint_paths = {
-            x for x in self.mountpoint_processes.keys()
+            x for x in self.mountpoint_handlers.keys()
         }
 
         # Handle newly detected filesystems
@@ -171,20 +173,18 @@ class AutorunProcessRegistry(object):
     def _detect_new_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Found new mountpoint: %s", path)
         usb_type = detect_usb_type(path)
-        type_handler = self.TYPE_HANDLERS[usb_type]
-        process = type_handler(path)
-        LOGGER.info("  -> launched process")
-        self.mountpoint_processes[path] = process
+        handler_class = self.TYPE_HANDLERS[usb_type]
+        handler = handler_class(path)
+        LOGGER.info("  -> launched handler")
+        self.mountpoint_handlers[path] = handler
         self.mountpoint_types[path] = usb_type
 
     def _detect_dead_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Lost mountpoint: %s", path)
-        usb_type = self.mountpoint_types[path]
-        process = self.mountpoint_processes[path]
-        close_handler = self.TYPE_CLOSE_HANDLER[usb_type]
-        close_handler(path, process)
-        LOGGER.info("  -> closed process")
-        del self.mountpoint_processes[path]
+        handler = self.mountpoint_handlers[path]
+        handler.close()
+        LOGGER.info("  -> closed handler")
+        del self.mountpoint_handlers[path]
         del self.mountpoint_types[path]
 
     def _is_viable_mountpoint(self, mountpoint: Mountpoint) -> bool:
