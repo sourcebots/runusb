@@ -14,8 +14,8 @@ Depends: ${misc:Depends},
          dpkg-dev,
          python3,
          systemd-sysv,
-         usbmount (>= 0.0.24),
          uhubctl,
+         usbmount (>= 0.0.24),
 Description: Automagic running of USB sticks
  Runs .autorun files from mounted USB sticks - or other filesystems -
  automatically, and safely containerised.
