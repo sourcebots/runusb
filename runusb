@@ -14,6 +14,7 @@ PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'main.py'
 SPAWN_IMAGE = '/mnt/rootmirror'
 UPDATE_FILENAME = 'update.tar.xz'
+METADATA_FILENAME = 'metadata.json'
 
 
 Mountpoint = NamedTuple('Mountpoint', [
@@ -38,6 +39,7 @@ VERBOTEN_FILESYSTEMS = (
 class USBType(Enum):
     ROBOT = 'ROBOT'
     UPDATE = 'UPDATE'
+    METADATA = 'METADATA'
     INVALID = 'INVALID'  # We dont care about this drive
 
 
@@ -53,6 +55,10 @@ def detect_usb_type(mountpoint: str) -> USBType:
     # Check for the existence of the robot code
     if os.path.exists(os.path.join(mountpoint, ROBOT_FILE)):
         return USBType.ROBOT
+
+    # Check for existence of a metadata file
+    if os.path.exists(os.path.join(mountpoint, METADATA_FILENAME)):
+        return USBType.METADATA
 
     return USBType.INVALID
 
@@ -135,10 +141,19 @@ class UpdateUSBHandler(USBHandler):
         pass
 
 
+class MetadataUSBHandler(USBHandler):
+    def __init__(self, registry: 'AutorunProcessRegistry', mountpoint_path: str):
+        pass  # Nothing to do.
+
+    def close(self) -> None:
+        pass  # Nothing to do.
+
+
 class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
         USBType.ROBOT: RobotUSBHandler,
         USBType.UPDATE: UpdateUSBHandler,
+        USBType.METADATA: MetadataUSBHandler,
     }  # type: Dict[USBType, Type[USBHandler]]
 
     def __init__(self) -> None:
