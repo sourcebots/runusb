@@ -93,7 +93,7 @@ class FSTabReader(object):
 
 class USBHandler(metaclass=ABCMeta):
     @abstractmethod
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, registry: 'AutorunProcessRegistry', mountpoint_path: str):
         pass
 
     @abstractmethod
@@ -102,7 +102,7 @@ class USBHandler(metaclass=ABCMeta):
 
 
 class RobotUSBHandler(USBHandler):
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, registry: 'AutorunProcessRegistry', mountpoint_path: str):
         self.process = subprocess.Popen(
             ["python3", "-u", ROBOT_FILE],
             stdin=subprocess.DEVNULL,
@@ -121,7 +121,7 @@ class RobotUSBHandler(USBHandler):
 
 
 class UpdateUSBHandler(USBHandler):
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, registry: 'AutorunProcessRegistry', mountpoint_path: str):
         self.process = subprocess.Popen(
             ['sb-update', mountpoint_path],
             stdin=subprocess.DEVNULL,
@@ -174,7 +174,7 @@ class AutorunProcessRegistry(object):
         LOGGER.info("Found new mountpoint: %s", path)
         usb_type = detect_usb_type(path)
         handler_class = self.TYPE_HANDLERS[usb_type]
-        handler = handler_class(path)
+        handler = handler_class(self, path)
         LOGGER.info("  -> launched handler")
         self.mountpoint_handlers[path] = handler
         self.mountpoint_types[path] = usb_type
