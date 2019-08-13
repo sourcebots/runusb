@@ -41,7 +41,7 @@ set -o errexit
 
 # In case the user code exits immediately, keep the yellow LED on
 # for at least a couple of seconds.
-sleep 2
+sleep 1
 
 echo >&2
 if [ $status -eq 0 ]; then
