@@ -1,4 +1,5 @@
 runusb                usr/bin
 runusb.service        lib/systemd/system/
 sb-update             usr/bin
+idfc                  usr/bin
 usbmount.conf         etc/usbmount
