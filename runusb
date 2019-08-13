@@ -115,10 +115,8 @@ class RobotUSBHandler(USBHandler):
             env["SBOT_METADATA_PATH"] = metadata_path
 
         self.process = subprocess.Popen(
-            ["python3", "-u", ROBOT_FILE],
+            ["idfc"],
             stdin=subprocess.DEVNULL,
-            stdout=open(os.path.join(mountpoint_path, "log.txt"), "w"),
-            stderr=subprocess.STDOUT,
             cwd=mountpoint_path,
             env=env,
         )
