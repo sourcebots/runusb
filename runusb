@@ -14,6 +14,7 @@ LOGGER = logging.getLogger('runusb')
 PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'main.py'
 SPAWN_IMAGE = '/mnt/rootmirror'
+MOUNTPOINT_DIR = '/media'  # the directory under which all USBs will be mounted
 UPDATE_FILENAME = 'update.tar.xz'
 METADATA_FILENAME = 'metadata.json'
 
@@ -111,10 +112,7 @@ class USBHandler(metaclass=ABCMeta):
 class RobotUSBHandler(USBHandler):
     def __init__(self, registry: 'AutorunProcessRegistry', mountpoint_path: str):
         env = dict(os.environ)
-        metadata_path = self._find_metadata_usb(registry)
-        if metadata_path is not None:
-            env["SBOT_METADATA_PATH"] = metadata_path
-
+        env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
         self.process = subprocess.Popen(
             ["idfc"],
             stdin=subprocess.DEVNULL,
