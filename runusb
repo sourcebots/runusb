@@ -3,6 +3,7 @@
 import logging
 import os
 import select
+import signal
 import subprocess
 from abc import ABCMeta, abstractmethod
 from enum import Enum
@@ -119,6 +120,7 @@ class RobotUSBHandler(USBHandler):
             stdin=subprocess.DEVNULL,
             cwd=mountpoint_path,
             env=env,
+            start_new_session=True,  # Put the process in a new process group
         )
 
     def _find_metadata_usb(self, registry: 'AutorunProcessRegistry') -> Optional[str]:
@@ -139,13 +141,19 @@ class RobotUSBHandler(USBHandler):
         return path
 
     def close(self) -> None:
-        self.process.terminate()
+        self._send_signal(signal.SIGTERM)
         try:
             self.process.communicate(timeout=5)
         except subprocess.TimeoutExpired:
             pass
-        self.process.kill()
+        self._send_signal(signal.SIGKILL)
         self._reset_servo_board()
+
+    def _send_signal(self, sig: int) -> None:
+        if self.process.poll() is not None:
+            # Process has already exited, so the kill() call would fail.
+            return
+        os.killpg(self.process.pid, sig)
 
     def _reset_servo_board(self) -> None:
         """
