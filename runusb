@@ -121,23 +121,6 @@ class RobotUSBHandler(USBHandler):
             start_new_session=True,  # Put the process in a new process group
         )
 
-    def _find_metadata_usb(self, registry: 'AutorunProcessRegistry') -> Optional[str]:
-        paths = [
-            path
-            for path, usb_type in registry.mountpoint_types.items()
-            if usb_type == USBType.METADATA
-        ]
-        if not paths:
-            return None
-        if len(paths) > 1:
-            LOGGER.warn(
-                "Multiple metadata USBs detected (this is not supported!): %s",
-                ", ".join(paths),
-            )
-        path = paths[0]
-        LOGGER.debug("Detected metadata at %s", path)
-        return path
-
     def close(self) -> None:
         self._send_signal(signal.SIGTERM)
         try:
