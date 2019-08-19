@@ -8,7 +8,7 @@ set -o errexit -o nounset -o pipefail
 
 # This beautiful script was hand-crafted at Smallpeice 2019 to fix all of the annoying behaviour with RunUSB.
 # To save some time and scripting, we will make the following assumptions:
-# - This script will only be ran in the CWD of the USB
+# - This script will only be ran with a robot code USB mounted at the current working directory
 # - The code is called main.py
 # - We are using a variation of the sbot kit
 
