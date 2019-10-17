@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+
+# I - Intelligent
+# D - Dscript
+# F - Fixing
+# C - Ckit
+
+# This beautiful script was hand-crafted at Smallpeice 2019 to fix all of the annoying behaviour with RunUSB.
+# To save some time and scripting, we will make the following assumptions:
+# - This script will only be ran in the CWD of the USB
+# - The code is called main.py
+# - We are using a variation of the sbot kit
+
+red_led=2
+yellow_led=3
+green_led=4
+
+function set_leds() {
+  echo 0 > /sys/class/gpio/gpio$red_led/value
+  echo 0 > /sys/class/gpio/gpio$yellow_led/value
+  echo 0 > /sys/class/gpio/gpio$green_led/value
+  if [ "${1:-}" = "red" ]; then
+    echo 1 > /sys/class/gpio/gpio$red_led/value
+    shift
+  fi
+  if [ "${1:-}" = "yellow" ]; then
+    echo 1 > /sys/class/gpio/gpio$yellow_led/value
+    shift
+  fi
+  if [ "${1:-}" = "green" ]; then
+    echo 1 > /sys/class/gpio/gpio$green_led/value
+    shift
+  fi
+}
+
+# Set up LEDs.
+for led in $red_led $yellow_led $green_led; do
+  path=/sys/class/gpio/gpio$led
+  if [ ! -e $path ]; then
+    # Enable access to pin.
+    echo $led > /sys/class/gpio/export
+  fi
+  # Set direction.
+  echo out > /sys/class/gpio/gpio$led/direction
+  # Set output state.
+  echo 0 > /sys/class/gpio/gpio$led/value
+done
+
+set_leds yellow
+trap "{ set_leds red; exit 1; }" SIGHUP SIGINT SIGTERM
+
+echo >&2 "Starting user code."
+echo >&2
+
+set +o errexit
+script --quiet --flush --return --command "python3 main.py" log.txt
+status=$?
+set -o errexit
+
+# In case the user code exits immediately, keep the yellow LED on
+# for at least a couple of seconds.
+sleep 1
+
+echo >&2
+if [ $status -eq 0 ]; then
+  echo >&2 "User code finished successfully."
+  set_leds green
+  echo >> log.txt
+  echo "Your code finished successfully." >> log.txt
+else
+  echo >&2 "User code finished unsuccessfully."
+  set_leds red
+  echo >> log.txt
+  echo "Your code was unsuccessful." >> log.txt
+
+fi
+
+exit $status

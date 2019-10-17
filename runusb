@@ -2,23 +2,21 @@
 
 import logging
 import os
-import re
 import select
+import signal
 import subprocess
+from abc import ABCMeta, abstractmethod
 from enum import Enum
-from typing import Callable, Dict, Iterator, NamedTuple  # noqa: F401
-
-TypeOpenHandler = Callable[[str], subprocess.Popen]
-TypeCloseHandler = Callable[[str, subprocess.Popen], None]
-
+from typing import Dict, Iterator, NamedTuple, Optional, Type  # noqa: F401
 
 LOGGER = logging.getLogger('runusb')
 
 PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'main.py'
 SPAWN_IMAGE = '/mnt/rootmirror'
+MOUNTPOINT_DIR = '/media'  # the directory under which all USBs will be mounted
 UPDATE_FILENAME = 'update.tar.xz'
-ROBOTD_LOCATION = '/var/robotd'
+METADATA_FILENAME = 'metadata.json'
 
 
 Mountpoint = NamedTuple('Mountpoint', [
@@ -40,13 +38,10 @@ VERBOTEN_FILESYSTEMS = (
 )
 
 
-def get_machinename(path):
-    return re.sub(r'[^\w]', r'_', path).strip('_')
-
-
 class USBType(Enum):
     ROBOT = 'ROBOT'
     UPDATE = 'UPDATE'
+    METADATA = 'METADATA'
     INVALID = 'INVALID'  # We dont care about this drive
 
 
@@ -62,6 +57,10 @@ def detect_usb_type(mountpoint: str) -> USBType:
     # Check for the existence of the robot code
     if os.path.exists(os.path.join(mountpoint, ROBOT_FILE)):
         return USBType.ROBOT
+
+    # Check for existence of a metadata file
+    if os.path.exists(os.path.join(mountpoint, METADATA_FILENAME)):
+        return USBType.METADATA
 
     return USBType.INVALID
 
@@ -100,84 +99,112 @@ class FSTabReader(object):
         return bool(changed)
 
 
-def open_update_robot_process(path: str) -> subprocess.Popen:
-    return subprocess.Popen(
-        ['sb-update', path],
-        stdin=subprocess.DEVNULL,
-    )
+class USBHandler(metaclass=ABCMeta):
+    @abstractmethod
+    def __init__(self, mountpoint_path: str):
+        pass
 
-
-def open_run_robot_code_process(path: str) -> subprocess.Popen:
-    command = [
-        'systemd-nspawn',
-        '--private-network',
-    ]
-
-    # Specify the root directory for the nspawn container
-    command.extend(('--directory', SPAWN_IMAGE))
-
-    # Bring in any requested bind mounts
-    command.extend(('--bind', ROBOTD_LOCATION))
-
-    # Mount a tmpfs as /tmp
-    command.extend(('--tmpfs', '/tmp'))
-
-    # Bind-mount the actual path
-    command.extend(('--bind', path))
-
-    # Attach a machine ID, use the path as the ID
-    command.extend(('--machine', get_machinename(path)))
-
-    # Run as our limited user
-    command.extend(('--user', 'runusb'))
-
-    # Run the autorun file with bash -c
-    command.extend(('/bin/bash', '-c'))
-
-    # cd to the mountpoint and run the autorun file
-    command.append(
-        'cd "{mountpoint}" ; script --quiet -ec "python3 {autorun}" -f log.txt'.format(
-            mountpoint=path,
-            autorun=ROBOT_FILE,
-        ),
-    )
-
-    return subprocess.Popen(command, stdin=subprocess.DEVNULL)
-
-
-def kill_robot_process(path: str, process: subprocess.Popen) -> None:
-    # With the mountpoint now missing the only sensible thing to do is
-    # to die horribly.
-    command = ('machinectl', 'terminate', get_machinename(path))
-    subprocess.call(command)
-    process.wait(timeout=5)
-    try:
-        process.kill()
-    except ProcessLookupError:
+    @abstractmethod
+    def close(self) -> None:
         pass
 
 
-def noop_close(path, process):
-    """
-        We don't actually want to kill in the case of the update process.
-        Could lead to the robot in a broken state!
-    """
-    pass
+class RobotUSBHandler(USBHandler):
+    def __init__(self, mountpoint_path: str):
+        env = dict(os.environ)
+        env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
+        self.process = subprocess.Popen(
+            ["idfc"],
+            stdin=subprocess.DEVNULL,
+            cwd=mountpoint_path,
+            env=env,
+            start_new_session=True,  # Put the process in a new process group
+        )
+
+    def close(self) -> None:
+        self._send_signal(signal.SIGTERM)
+        try:
+            self.process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        self._send_signal(signal.SIGKILL)
+        self._reset_servo_board()
+
+    def _send_signal(self, sig: int) -> None:
+        if self.process.poll() is not None:
+            # Process has already exited, so the kill() call would fail.
+            return
+        os.killpg(self.process.pid, sig)
+
+    def _reset_servo_board(self) -> None:
+        """
+        Due to an outstanding bug in the SR servo board firmware
+        (https://github.com/srobo/servo-v4-fw/issues/7),
+        it crashes when 12V power is removed as the user code process exits,
+        rendering its USB interface unusable until the microcontroller is reset.
+
+        Unfortunately there is no way to reset the microcontroller remotely
+        other than by power-cycling the power provided to it over USB. While a
+        few USB hubs support power-cycling individual ports, neither the
+        Raspberry Pi's internal hub nor the model of external hub we currently
+        use support this, so the best we can do is to power-cycle all of the
+        Raspberry Pi's ports at once. On the upside, it means we don't have to
+        care whereabouts on the bus the servo board is connected.
+
+        To be specific, the Raspberry Pi's internal hub does support some level
+        of per-port switching but not enough to be useful to us: port 1 (which
+        is connected to the builtin Ethernet controller) can be switched
+        independently of ports 2 to 5 (the physical USB ports). Ports 2-5 are
+        switched by telling uhubctl to operate on port 2; telling it to operate
+        on ports 3, 4 or 5 has no effect. See the uhubctl README for more info:
+        https://github.com/mvp/uhubctl
+        """
+        command = [
+            "uhubctl",
+            "--loc", "1-1",  # path to the hub to power cycle (this never changes)
+            "--ports", "2",  # only switch ports 2-5
+            "--action", "cycle",
+            "--delay", "1",  # time to wait before powering back on
+        ]
+        LOGGER.info("power-cycling USB bus to reset servo board (srobo/servo-v4-fw#7)")
+        try:
+            subprocess.run(command, check=True)
+        except BaseException:
+            LOGGER.exception("failed to power-cycle USB bus")
+
+
+class UpdateUSBHandler(USBHandler):
+    def __init__(self, mountpoint_path: str):
+        self.process = subprocess.Popen(
+            ['sb-update', mountpoint_path],
+            stdin=subprocess.DEVNULL,
+        )
+
+    def close(self) -> None:
+        """
+            We don't actually want to kill in the case of the update process.
+            Could lead to the robot in a broken state!
+        """
+        pass
+
+
+class MetadataUSBHandler(USBHandler):
+    def __init__(self, mountpoint_path: str):
+        pass  # Nothing to do.
+
+    def close(self) -> None:
+        pass  # Nothing to do.
 
 
 class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
-        USBType.ROBOT: open_run_robot_code_process,
-        USBType.UPDATE: open_update_robot_process,
-    }  # type: Dict[USBType, TypeOpenHandler]
-
-    TYPE_CLOSE_HANDLER = {
-        USBType.ROBOT: kill_robot_process,
-        USBType.UPDATE: noop_close,
-    }  # type: Dict[USBType, TypeCloseHandler]
+        USBType.ROBOT: RobotUSBHandler,
+        USBType.UPDATE: UpdateUSBHandler,
+        USBType.METADATA: MetadataUSBHandler,
+    }  # type: Dict[USBType, Type[USBHandler]]
 
     def __init__(self) -> None:
-        self.mountpoint_processes = {}  # type: Dict[str, subprocess.Popen]
+        self.mountpoint_handlers = {}  # type: Dict[str, USBHandler]
         self.mountpoint_types = {}  # type: Dict[str, USBType]
 
     def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
@@ -188,7 +215,7 @@ class AutorunProcessRegistry(object):
         }
 
         expected_mountpoint_paths = {
-            x for x in self.mountpoint_processes.keys()
+            x for x in self.mountpoint_handlers.keys()
         }
 
         # Handle newly detected filesystems
@@ -208,20 +235,18 @@ class AutorunProcessRegistry(object):
     def _detect_new_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Found new mountpoint: %s", path)
         usb_type = detect_usb_type(path)
-        type_handler = self.TYPE_HANDLERS[usb_type]
-        process = type_handler(path)
-        LOGGER.info("  -> launched process")
-        self.mountpoint_processes[path] = process
+        handler_class = self.TYPE_HANDLERS[usb_type]
+        handler = handler_class(path)
+        LOGGER.info("  -> launched handler")
+        self.mountpoint_handlers[path] = handler
         self.mountpoint_types[path] = usb_type
 
     def _detect_dead_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Lost mountpoint: %s", path)
-        usb_type = self.mountpoint_types[path]
-        process = self.mountpoint_processes[path]
-        close_handler = self.TYPE_CLOSE_HANDLER[usb_type]
-        close_handler(path, process)
-        LOGGER.info("  -> closed process")
-        del self.mountpoint_processes[path]
+        handler = self.mountpoint_handlers[path]
+        handler.close()
+        LOGGER.info("  -> closed handler")
+        del self.mountpoint_handlers[path]
         del self.mountpoint_types[path]
 
     def _is_viable_mountpoint(self, mountpoint: Mountpoint) -> bool:
