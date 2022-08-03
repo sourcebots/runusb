@@ -1,7 +1,7 @@
 Automatic USB running
 =====================
 
-[![CircleCI](https://circleci.com/gh/sourcebots/runusb.svg?style=shield)](https://circleci.com/gh/sourcebots/runusb)
+![Linting workflow](https://github.com/sourcebots/runusb/actions/workflows/pylint.yml/badge.svg)
 
 Watches for mounted filesystems with `.autorun` files, and runs those files,
 well, automatically.
