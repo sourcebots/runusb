@@ -214,9 +214,7 @@ class AutorunProcessRegistry(object):
             if self._is_viable_mountpoint(x)
         }
 
-        expected_mountpoint_paths = {
-            x for x in self.mountpoint_handlers.keys()
-        }
+        expected_mountpoint_paths = set(self.mountpoint_handlers.keys())
 
         # Handle newly detected filesystems
         for new_mountpoint_path in (
