@@ -14,11 +14,12 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: 3.7
+    - name: Set up virtualenv
+      run: python -m venv venv
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r script/linting/requirements.txt
-        pip install -r script/typing/requirements.txt
+        venv/bin/pip install -r script/linting/requirements.txt
+        venv/bin/pip install -r script/typing/requirements.txt
     - name: Linting
       run: script/linting/lint
     - name: Type checking
