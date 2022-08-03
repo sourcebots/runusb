@@ -14,7 +14,6 @@ Install through apt:
 * `build-essential`
 * `devscripts`
 * `debhelper`
-* `dh-systemd`
 
 And then run, from the root of the project:
 
