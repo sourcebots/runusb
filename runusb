@@ -6,8 +6,15 @@ import select
 import signal
 import subprocess
 from abc import ABCMeta, abstractmethod
-from enum import Enum
+from enum import Enum, IntEnum, unique
+from threading import Thread
 from typing import Dict, Iterator, NamedTuple, Optional, Type  # noqa: F401
+
+try:
+    import RPi.GPIO as GPIO
+    IS_PI = True
+except ImportError:
+    IS_PI = False
 
 LOGGER = logging.getLogger('runusb')
 
@@ -37,6 +44,43 @@ VERBOTEN_FILESYSTEMS = (
 )
 
 
+class LEDController():
+    @unique
+    class LEDs(IntEnum):
+        RED = 2
+        YELLOW = 3
+        GREEN = 4
+
+    def __init__(self) -> None:
+        if IS_PI:
+            LOGGER.debug("Configuring LED controller")
+            GPIO.setwarnings(False)
+            GPIO.setmode(GPIO.BOARD)
+            GPIO.setup([led.value for led in self.LEDs], GPIO.OUT, initial=GPIO.LOW)
+
+    def red(self) -> None:
+        if IS_PI:
+            GPIO.output(self.LEDs.RED, GPIO.HIGH)
+            GPIO.output(self.LEDs.YELLOW, GPIO.LOW)
+            GPIO.output(self.LEDs.GREEN, GPIO.LOW)
+
+    def yellow(self) -> None:
+        if IS_PI:
+            GPIO.output(self.LEDs.RED, GPIO.LOW)
+            GPIO.output(self.LEDs.YELLOW, GPIO.HIGH)
+            GPIO.output(self.LEDs.GREEN, GPIO.LOW)
+
+    def green(self) -> None:
+        if IS_PI:
+            GPIO.output(self.LEDs.RED, GPIO.LOW)
+            GPIO.output(self.LEDs.YELLOW, GPIO.LOW)
+            GPIO.output(self.LEDs.GREEN, GPIO.HIGH)
+
+
+LED_CONTROLLER = LEDController()
+
+
+@unique
 class USBType(Enum):
     ROBOT = 'ROBOT'
     METADATA = 'METADATA'
@@ -105,15 +149,28 @@ class USBHandler(metaclass=ABCMeta):
 
 class RobotUSBHandler(USBHandler):
     def __init__(self, mountpoint_path: str):
+        LED_CONTROLLER.yellow()
         env = dict(os.environ)
         env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
         self.process = subprocess.Popen(
-            ["idfc"],
+            [
+                "script",
+                "--quiet",
+                "--flush",
+                "--return",
+                "--command",
+                f"python3 {ROBOT_FILE}",
+                "log.txt",
+
+            ],
             stdin=subprocess.DEVNULL,
             cwd=mountpoint_path,
             env=env,
             start_new_session=True,  # Put the process in a new process group
         )
+
+        self.thread = Thread(target=self._watch_process)
+        self.thread.start()
 
     def close(self) -> None:
         self._send_signal(signal.SIGTERM)
@@ -122,6 +179,7 @@ class RobotUSBHandler(USBHandler):
         except subprocess.TimeoutExpired:
             pass
         self._send_signal(signal.SIGKILL)
+        self._set_leds()
         self._reset_servo_board()
 
     def _send_signal(self, sig: int) -> None:
@@ -129,6 +187,19 @@ class RobotUSBHandler(USBHandler):
             # Process has already exited, so the kill() call would fail.
             return
         os.killpg(self.process.pid, sig)
+
+    def _watch_process(self) -> None:
+        # Wait for the process to complete
+        self.process.wait()
+
+        # Start clean-up
+        self.close()
+
+    def _set_leds(self):
+        if self.process.returncode == 0:
+            LED_CONTROLLER.green()
+        else:
+            LED_CONTROLLER.red()
 
     def _reset_servo_board(self) -> None:
         """

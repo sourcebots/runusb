@@ -1,4 +1,3 @@
 runusb                usr/bin
 runusb.service        lib/systemd/system/
-idfc                  usr/bin
 usbmount.conf         etc/usbmount
