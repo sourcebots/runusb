@@ -3,12 +3,6 @@
 %:
 	dh $@ --with systemd
 
-override_dh_systemd_start:
-	# Don't restart on upgrade as that causes the upgrade process to get killed
-	# mid-update; instead rely on sb-update rebooting the system after updating.
-	# Changing this? Also change that configuration in `sb-update`.
-	dh_systemd_start --no-restart-on-upgrade runusb.service
-
 override_dh_install:
 	find debian/ -name __pycache__ -type d | xargs -r rm -r
 	dh_install

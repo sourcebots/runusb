@@ -2,4 +2,4 @@
 if [ -z "$FLAKE8" ]; then
     FLAKE8=flake8
 fi
-exec "$FLAKE8" runusb sb-update
+exec "$FLAKE8" runusb

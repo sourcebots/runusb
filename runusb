@@ -15,7 +15,6 @@ PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'main.py'
 SPAWN_IMAGE = '/mnt/rootmirror'
 MOUNTPOINT_DIR = '/media'  # the directory under which all USBs will be mounted
-UPDATE_FILENAME = 'update.tar.xz'
 METADATA_FILENAME = 'metadata.json'
 
 
@@ -40,7 +39,6 @@ VERBOTEN_FILESYSTEMS = (
 
 class USBType(Enum):
     ROBOT = 'ROBOT'
-    UPDATE = 'UPDATE'
     METADATA = 'METADATA'
     INVALID = 'INVALID'  # We dont care about this drive
 
@@ -49,10 +47,6 @@ def detect_usb_type(mountpoint: str) -> USBType:
     # subpaths of the root image are excluded
     if mountpoint.startswith(SPAWN_IMAGE):
         return USBType.INVALID
-
-    # Check for existence of update file
-    if os.path.exists(os.path.join(mountpoint, UPDATE_FILENAME)):
-        return USBType.UPDATE
 
     # Check for the existence of the robot code
     if os.path.exists(os.path.join(mountpoint, ROBOT_FILE)):
@@ -173,21 +167,6 @@ class RobotUSBHandler(USBHandler):
             LOGGER.exception("failed to power-cycle USB bus")
 
 
-class UpdateUSBHandler(USBHandler):
-    def __init__(self, mountpoint_path: str):
-        self.process = subprocess.Popen(
-            ['sb-update', mountpoint_path],
-            stdin=subprocess.DEVNULL,
-        )
-
-    def close(self) -> None:
-        """
-            We don't actually want to kill in the case of the update process.
-            Could lead to the robot in a broken state!
-        """
-        pass
-
-
 class MetadataUSBHandler(USBHandler):
     def __init__(self, mountpoint_path: str):
         pass  # Nothing to do.
@@ -199,7 +178,6 @@ class MetadataUSBHandler(USBHandler):
 class AutorunProcessRegistry(object):
     TYPE_HANDLERS = {
         USBType.ROBOT: RobotUSBHandler,
-        USBType.UPDATE: UpdateUSBHandler,
         USBType.METADATA: MetadataUSBHandler,
     }  # type: Dict[USBType, Type[USBHandler]]
 

@@ -2,4 +2,4 @@
 if [ -z "$MYPY" ]; then
     MYPY=mypy
 fi
-exec "$MYPY" runusb sb-update
+exec "$MYPY" runusb
