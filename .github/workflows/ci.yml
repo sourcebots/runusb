@@ -1,9 +1,9 @@
-name: Linting & type checking
+name: CI
 
 on: [push]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     env:
       FLAKE8: venv/bin/flake8
@@ -24,3 +24,12 @@ jobs:
       run: script/linting/lint
     - name: Type checking
       run: script/typing/check
+
+  debuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential devscripts debhelper
+      - name: Build package
+        run: debuild -uc -us
