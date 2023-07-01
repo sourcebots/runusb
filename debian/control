@@ -12,6 +12,7 @@ Depends: ${misc:Depends},
          python3,
          uhubctl,
          usbmount (>= 0.0.24),
+         python3-rpi.gpio,
 Description: Automagic running of USB sticks
  Runs .autorun files from mounted USB sticks - or other filesystems -
  automatically, and safely containerised.
