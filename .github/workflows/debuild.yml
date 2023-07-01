@@ -1,0 +1,21 @@
+name: Build Debian package
+
+on:
+  release:
+    types: [created]
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  debuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential devscripts debhelper
+      - name: Build package
+        run: debuild -uc -us
