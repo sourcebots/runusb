@@ -18,3 +18,5 @@ Install through apt:
 And then run, from the root of the project:
 
 * `debuild -uc -us`
+
+Alternatively, you can download the prebuilt package from the GitHub releases.
