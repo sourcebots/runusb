@@ -19,3 +19,8 @@ jobs:
           sudo apt-get install --yes build-essential devscripts debhelper
       - name: Build package
         run: debuild -uc -us
+      - name: Save deb artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: runusb
+          path: ../*.deb
