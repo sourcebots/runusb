@@ -19,8 +19,11 @@ jobs:
           sudo apt-get install --yes build-essential devscripts debhelper
       - name: Build package
         run: debuild -uc -us
+      - name: Get debian package name
+        run: |
+          echo "runusb_deb_path=$(realpath ../*.deb)" >> $GITHUB_ENV
       - name: Save deb artifact
         uses: actions/upload-artifact@v3
         with:
           name: runusb
-          path: ../*.deb
+          path: ${{ env.runusb_deb_path }}
