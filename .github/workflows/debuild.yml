@@ -22,8 +22,18 @@ jobs:
       - name: Get debian package name
         run: |
           echo "runusb_deb_path=$(realpath ../*.deb)" >> $GITHUB_ENV
+          echo "runusb_deb_name=$(basename ../*.deb)" >> $GITHUB_ENV
       - name: Save deb artifact
         uses: actions/upload-artifact@v3
         with:
           name: runusb
           path: ${{ env.runusb_deb_path }}
+      - name: Upload deb to release
+        uses: svenstaro/upload-release-action@v2
+        if: github.event_name == 'release'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ env.runusb_deb_path }}
+          asset_name: ${{ env.runusb_deb_name }}
+          tag: ${{ github.ref }}
+          overwrite: true
