@@ -1,7 +1,8 @@
 Automatic USB running
 =====================
 
-![Linting workflow](https://github.com/sourcebots/runusb/actions/workflows/pylint.yml/badge.svg)
+![Lint workflow](https://github.com/sourcebots/runusb/actions/workflows/pylint.yml/badge.svg)
+![Debuild workflow](https://github.com/sourcebots/runusb/actions/workflows/debuild.yml/badge.svg)
 
 Watches for mounted filesystems with `.autorun` files, and runs those files,
 well, automatically.
