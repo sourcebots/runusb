@@ -20,7 +20,7 @@ except ImportError:
 LOGGER = logging.getLogger('runusb')
 
 PROC_FILE = '/proc/mounts'
-ROBOT_FILE = 'main.py'
+ROBOT_FILE = 'robot.py'
 SPAWN_IMAGE = '/mnt/rootmirror'
 MOUNTPOINT_DIR = '/media'  # the directory under which all USBs will be mounted
 METADATA_FILENAME = 'metadata.json'
