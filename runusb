@@ -247,8 +247,8 @@ class AutorunProcessRegistry(object):
             self._detect_dead_mountpoint_path(old_mountpoint)
 
     def _detect_new_mountpoint_path(self, path: str) -> None:
-        LOGGER.info(f"Found new mountpoint: {path}")
         usb_type = detect_usb_type(path)
+        LOGGER.info(f"Found new mountpoint: {path} ({usb_type})")
         handler_class = self.TYPE_HANDLERS[usb_type]
         handler = handler_class(path)
         LOGGER.info("  -> launched handler")
