@@ -101,6 +101,15 @@ def detect_usb_type(mountpoint: str) -> USBType:
     if os.path.exists(os.path.join(mountpoint, METADATA_FILENAME)):
         return USBType.METADATA
 
+    LOGGER.info(
+        "Disregarding filesystem %s of type %s is not forbidden but lacks "
+        "either %s or %s.",
+        mountpoint.mountpoint,
+        mountpoint.filesystem,
+        ROBOT_FILE,
+        METADATA_FILENAME,
+    )
+
     return USBType.INVALID
 
 
@@ -255,13 +264,6 @@ class AutorunProcessRegistry(object):
     def _is_viable_mountpoint(self, mountpoint: Mountpoint) -> bool:
         # Drop restricted types
         if mountpoint.filesystem in VERBOTEN_FILESYSTEMS:
-            LOGGER.debug(
-                "Disregarding filesystem %s due to forbidden filesystem "
-                "type %s",
-                mountpoint.mountpoint,
-                mountpoint.filesystem,
-            )
-
             return False
 
         # Sanity: never consider the root filesystem
