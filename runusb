@@ -219,7 +219,6 @@ class AutorunProcessRegistry(object):
 
     def __init__(self) -> None:
         self.mountpoint_handlers: dict[str, USBHandler] = {}
-        self.mountpoint_types: dict[str, USBType] = {}
 
     def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
         actual_mountpoints = {
@@ -245,7 +244,6 @@ class AutorunProcessRegistry(object):
         handler = handler_class(path)
         LOGGER.info("  -> launched handler")
         self.mountpoint_handlers[path] = handler
-        self.mountpoint_types[path] = usb_type
 
     def _detect_dead_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Lost mountpoint: %s", path)
@@ -253,7 +251,6 @@ class AutorunProcessRegistry(object):
         handler.close()
         LOGGER.info("  -> closed handler")
         del self.mountpoint_handlers[path]
-        del self.mountpoint_types[path]
 
     def _is_viable_mountpoint(self, mountpoint: Mountpoint) -> bool:
         # Drop restricted types
