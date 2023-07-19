@@ -108,13 +108,6 @@ class FSTabReader(object):
     def __init__(self) -> None:
         self.handle = open(PROC_FILE)
 
-    def __enter__(self) -> 'FSTabReader':
-        self.handle.__enter__()
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        return self.handle.__exit__(*args, **kwargs)
-
     def close(self) -> None:
         self.handle.close()
 
