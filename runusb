@@ -175,7 +175,6 @@ class RobotUSBHandler(USBHandler):
             pass
         self._send_signal(signal.SIGKILL)
         self._set_leds()
-        self._reset_servo_board()
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -202,42 +201,6 @@ class RobotUSBHandler(USBHandler):
             LED_CONTROLLER.green()
         else:
             LED_CONTROLLER.red()
-
-    def _reset_servo_board(self) -> None:
-        """
-        Due to an outstanding bug in the SR servo board firmware
-        (https://github.com/srobo/servo-v4-fw/issues/7),
-        it crashes when 12V power is removed as the user code process exits,
-        rendering its USB interface unusable until the microcontroller is reset.
-
-        Unfortunately there is no way to reset the microcontroller remotely
-        other than by power-cycling the power provided to it over USB. While a
-        few USB hubs support power-cycling individual ports, neither the
-        Raspberry Pi's internal hub nor the model of external hub we currently
-        use support this, so the best we can do is to power-cycle all of the
-        Raspberry Pi's ports at once. On the upside, it means we don't have to
-        care whereabouts on the bus the servo board is connected.
-
-        To be specific, the Raspberry Pi's internal hub does support some level
-        of per-port switching but not enough to be useful to us: port 1 (which
-        is connected to the builtin Ethernet controller) can be switched
-        independently of ports 2 to 5 (the physical USB ports). Ports 2-5 are
-        switched by telling uhubctl to operate on port 2; telling it to operate
-        on ports 3, 4 or 5 has no effect. See the uhubctl README for more info:
-        https://github.com/mvp/uhubctl
-        """
-        command = [
-            "uhubctl",
-            "--loc", "1-1",  # path to the hub to power cycle (this never changes)
-            "--ports", "2",  # only switch ports 2-5
-            "--action", "cycle",
-            "--delay", "1",  # time to wait before powering back on
-        ]
-        LOGGER.info("power-cycling USB bus to reset servo board (srobo/servo-v4-fw#7)")
-        try:
-            subprocess.run(command, check=True)
-        except BaseException:
-            LOGGER.exception("failed to power-cycle USB bus")
 
 
 class MetadataUSBHandler(USBHandler):
