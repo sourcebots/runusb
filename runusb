@@ -222,27 +222,21 @@ class AutorunProcessRegistry(object):
         self.mountpoint_types: dict[str, USBType] = {}
 
     def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
-        actual_mountpoint_paths = {
+        actual_mountpoints = {
             x.mountpoint
             for x in mountpoints
             if self._is_viable_mountpoint(x)
         }
 
-        expected_mountpoint_paths = set(self.mountpoint_handlers.keys())
+        expected_mountpoints = set(self.mountpoint_handlers.keys())
 
         # Handle newly detected filesystems
-        for new_mountpoint_path in (
-            actual_mountpoint_paths
-            - expected_mountpoint_paths
-        ):
-            self._detect_new_mountpoint_path(new_mountpoint_path)
+        for new_mountpoint in (actual_mountpoints - expected_mountpoints):
+            self._detect_new_mountpoint_path(new_mountpoint)
 
         # Handle now-dead filesystems
-        for old_mountpoint_path in (
-            expected_mountpoint_paths
-            - actual_mountpoint_paths
-        ):
-            self._detect_dead_mountpoint_path(old_mountpoint_path)
+        for old_mountpoint in (expected_mountpoints - actual_mountpoints):
+            self._detect_dead_mountpoint_path(old_mountpoint)
 
     def _detect_new_mountpoint_path(self, path: str) -> None:
         LOGGER.info("Found new mountpoint: %s", path)
