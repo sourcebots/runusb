@@ -102,12 +102,9 @@ def detect_usb_type(mountpoint: str) -> USBType:
         return USBType.METADATA
 
     LOGGER.info(
-        "Disregarding filesystem %s of type %s is not forbidden but lacks "
-        "either %s or %s.",
-        mountpoint.mountpoint,
-        mountpoint.filesystem,
-        ROBOT_FILE,
-        METADATA_FILENAME,
+        f"Disregarding filesystem {mountpoint.mountpoint} of type "
+        f"{mountpoint.filesystem} is not forbidden but lacks either "
+        f"{ROBOT_FILE} or {METADATA_FILENAME} file."
     )
 
     return USBType.INVALID
@@ -247,7 +244,7 @@ class AutorunProcessRegistry(object):
             self._detect_dead_mountpoint_path(old_mountpoint)
 
     def _detect_new_mountpoint_path(self, path: str) -> None:
-        LOGGER.info("Found new mountpoint: %s", path)
+        LOGGER.info(f"Found new mountpoint: {path}")
         usb_type = detect_usb_type(path)
         handler_class = self.TYPE_HANDLERS[usb_type]
         handler = handler_class(path)
@@ -255,7 +252,7 @@ class AutorunProcessRegistry(object):
         self.mountpoint_handlers[path] = handler
 
     def _detect_dead_mountpoint_path(self, path: str) -> None:
-        LOGGER.info("Lost mountpoint: %s", path)
+        LOGGER.info(f"Lost mountpoint: {path}")
         handler = self.mountpoint_handlers[path]
         handler.close()
         LOGGER.info("  -> closed handler")
