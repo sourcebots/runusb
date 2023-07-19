@@ -10,7 +10,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum, unique
 from threading import Thread
-from typing import Iterator, NamedTuple, Type  # noqa: F401
+from typing import Iterator, NamedTuple, Type
 
 try:
     import RPi.GPIO as GPIO
