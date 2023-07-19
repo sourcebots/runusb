@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import logging
 import os
@@ -9,7 +10,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum, unique
 from threading import Thread
-from typing import Dict, Iterator, NamedTuple, Optional, Type  # noqa: F401
+from typing import Iterator, NamedTuple, Type  # noqa: F401
 
 try:
     import RPi.GPIO as GPIO
@@ -26,10 +27,9 @@ MOUNTPOINT_DIR = '/media'  # the directory under which all USBs will be mounted
 METADATA_FILENAME = 'metadata.json'
 
 
-Mountpoint = NamedTuple('Mountpoint', [
-    ('mountpoint', str),
-    ('filesystem', str),
-])
+class Mountpoint(NamedTuple):
+    mountpoint: str
+    filesystem: str
 
 
 VERBOTEN_FILESYSTEMS = (
@@ -108,14 +108,14 @@ class FSTabReader(object):
     def __init__(self) -> None:
         self.handle = open(PROC_FILE)
 
-    def __enter__(self):
+    def __enter__(self) -> 'FSTabReader':
         self.handle.__enter__()
         return self
 
     def __exit__(self, *args, **kwargs):
         return self.handle.__exit__(*args, **kwargs)
 
-    def close(self):
+    def close(self) -> None:
         self.handle.close()
 
     def read(self) -> Iterator[Mountpoint]:
@@ -129,7 +129,7 @@ class FSTabReader(object):
                 filesystem=filesystem,
             )
 
-    def watch(self, timeout=None):
+    def watch(self, timeout=None) -> bool:
         _, _, changed = select.select([], [], [self.handle], timeout)
 
         if changed:
@@ -140,7 +140,7 @@ class FSTabReader(object):
 
 class USBHandler(metaclass=ABCMeta):
     @abstractmethod
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, mountpoint_path: str) -> None:
         pass
 
     @abstractmethod
@@ -149,7 +149,7 @@ class USBHandler(metaclass=ABCMeta):
 
 
 class RobotUSBHandler(USBHandler):
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, mountpoint_path: str) -> None:
         LED_CONTROLLER.yellow()
         env = dict(os.environ)
         env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
@@ -204,7 +204,7 @@ class RobotUSBHandler(USBHandler):
         # Start clean-up
         self.close()
 
-    def _set_leds(self):
+    def _set_leds(self) -> None:
         if self.process.returncode == 0:
             LED_CONTROLLER.green()
         else:
@@ -248,7 +248,7 @@ class RobotUSBHandler(USBHandler):
 
 
 class MetadataUSBHandler(USBHandler):
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, mountpoint_path: str) -> None:
         pass  # Nothing to do.
 
     def close(self) -> None:
@@ -256,14 +256,14 @@ class MetadataUSBHandler(USBHandler):
 
 
 class AutorunProcessRegistry(object):
-    TYPE_HANDLERS = {
+    TYPE_HANDLERS: dict[USBType, Type[USBHandler]] = {
         USBType.ROBOT: RobotUSBHandler,
         USBType.METADATA: MetadataUSBHandler,
-    }  # type: Dict[USBType, Type[USBHandler]]
+    }
 
     def __init__(self) -> None:
-        self.mountpoint_handlers = {}  # type: Dict[str, USBHandler]
-        self.mountpoint_types = {}  # type: Dict[str, USBType]
+        self.mountpoint_handlers: dict[str, USBHandler] = {}
+        self.mountpoint_types: dict[str, USBType] = {}
 
     def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
         actual_mountpoint_paths = {
