@@ -55,7 +55,7 @@ class LEDController():
     def __init__(self) -> None:
         if IS_PI:
             LOGGER.debug("Configuring LED controller")
-            atexit.register(GPIO.cleanup)
+            atexit.register(GPIO.cleanup)  # type: ignore[attr-defined]
             GPIO.setmode(GPIO.BOARD)
             GPIO.setup([led.value for led in self.LEDs], GPIO.OUT, initial=GPIO.LOW)
 
@@ -92,8 +92,7 @@ def detect_usb_type(mountpoint: str) -> USBType:
     # only mountpoints under MOUNTPOINT_DIR are considered
     if not mountpoint.startswith(MOUNTPOINT_DIR):
         LOGGER.debug(
-            f"Disregarding filesystem {mountpoint} of type "
-            f"{mountpoint.filesystem} is not under {MOUNTPOINT_DIR}.",
+            f"Disregarding filesystem {mountpoint!r}. Is not under {MOUNTPOINT_DIR}.",
         )
         return USBType.INVALID
 
@@ -106,8 +105,7 @@ def detect_usb_type(mountpoint: str) -> USBType:
         return USBType.METADATA
 
     LOGGER.info(
-        f"Disregarding filesystem {mountpoint.mountpoint} of type "
-        f"{mountpoint.filesystem} is not forbidden but lacks either "
+        f"Disregarding filesystem {mountpoint!r}. Is not forbidden but lacks either "
         f"{ROBOT_FILE} or {METADATA_FILENAME} file.",
     )
 
