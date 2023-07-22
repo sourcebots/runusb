@@ -180,10 +180,11 @@ class RobotUSBHandler(USBHandler):
     def close(self) -> None:
         self._send_signal(signal.SIGTERM)
         try:
+            # Wait for the process to exit
             self.process.communicate(timeout=5)
         except subprocess.TimeoutExpired:
-            pass
-        self._send_signal(signal.SIGKILL)
+            # The process did not exit after 5 seconds, so kill it.
+            self._send_signal(signal.SIGKILL)
         self._set_leds()
 
     def _send_signal(self, sig: int) -> None:
