@@ -93,7 +93,7 @@ def detect_usb_type(mountpoint: str) -> USBType:
     if not mountpoint.startswith(MOUNTPOINT_DIR):
         LOGGER.debug(
             f"Disregarding filesystem {mountpoint} of type "
-            f"{mountpoint.filesystem} is not under {MOUNTPOINT_DIR}."
+            f"{mountpoint.filesystem} is not under {MOUNTPOINT_DIR}.",
         )
         return USBType.INVALID
 
@@ -108,7 +108,7 @@ def detect_usb_type(mountpoint: str) -> USBType:
     LOGGER.info(
         f"Disregarding filesystem {mountpoint.mountpoint} of type "
         f"{mountpoint.filesystem} is not forbidden but lacks either "
-        f"{ROBOT_FILE} or {METADATA_FILENAME} file."
+        f"{ROBOT_FILE} or {METADATA_FILENAME} file.",
     )
 
     return USBType.INVALID
