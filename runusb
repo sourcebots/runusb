@@ -33,15 +33,23 @@ class Mountpoint(NamedTuple):
 
 
 VERBOTEN_FILESYSTEMS = (
+    'autofs',
+    'bpf',
     'cgroup',
+    'cgroup2',
     'configfs',
     'debugfs',
     'devpts',
     'devtmpfs',
+    'fusectl',
     'hugetlbfs',
     'mqueue',
     'proc',
+    'pstore',
+    'rpc_pipefs',
+    'securityfs',
     'sysfs',
+    'tracefs',
 )
 
 
