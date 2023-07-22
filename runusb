@@ -56,7 +56,7 @@ class LEDController():
         if IS_PI:
             LOGGER.debug("Configuring LED controller")
             atexit.register(GPIO.cleanup)  # type: ignore[attr-defined]
-            GPIO.setmode(GPIO.BOARD)
+            GPIO.setmode(GPIO.BCM)
             GPIO.setup([led.value for led in self.LEDs], GPIO.OUT, initial=GPIO.LOW)
 
     def red(self) -> None:
