@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
+import atexit
 import logging
 import os
 import select
@@ -9,7 +11,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum, unique
 from threading import Thread
-from typing import Dict, Iterator, NamedTuple, Optional, Type  # noqa: F401
+from typing import Iterator, NamedTuple, Type
 
 try:
     import RPi.GPIO as GPIO
@@ -21,27 +23,33 @@ LOGGER = logging.getLogger('runusb')
 
 PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'robot.py'
-SPAWN_IMAGE = '/mnt/rootmirror'
 MOUNTPOINT_DIR = '/media'  # the directory under which all USBs will be mounted
 METADATA_FILENAME = 'metadata.json'
 
 
-Mountpoint = NamedTuple('Mountpoint', [
-    ('mountpoint', str),
-    ('filesystem', str),
-])
+class Mountpoint(NamedTuple):
+    mountpoint: str
+    filesystem: str
 
 
 VERBOTEN_FILESYSTEMS = (
+    'autofs',
+    'bpf',
     'cgroup',
+    'cgroup2',
     'configfs',
     'debugfs',
     'devpts',
     'devtmpfs',
+    'fusectl',
     'hugetlbfs',
     'mqueue',
     'proc',
+    'pstore',
+    'rpc_pipefs',
+    'securityfs',
     'sysfs',
+    'tracefs',
 )
 
 
@@ -55,8 +63,8 @@ class LEDController():
     def __init__(self) -> None:
         if IS_PI:
             LOGGER.debug("Configuring LED controller")
-            GPIO.setwarnings(False)
-            GPIO.setmode(GPIO.BOARD)
+            atexit.register(GPIO.cleanup)  # type: ignore[attr-defined]
+            GPIO.setmode(GPIO.BCM)
             GPIO.setup([led.value for led in self.LEDs], GPIO.OUT, initial=GPIO.LOW)
 
     def red(self) -> None:
@@ -89,8 +97,11 @@ class USBType(Enum):
 
 
 def detect_usb_type(mountpoint: str) -> USBType:
-    # subpaths of the root image are excluded
-    if mountpoint.startswith(SPAWN_IMAGE):
+    # only mountpoints under MOUNTPOINT_DIR are considered
+    if not mountpoint.startswith(MOUNTPOINT_DIR):
+        LOGGER.debug(
+            f"Disregarding filesystem {mountpoint!r}. Is not under {MOUNTPOINT_DIR}.",
+        )
         return USBType.INVALID
 
     # Check for the existence of the robot code
@@ -101,6 +112,11 @@ def detect_usb_type(mountpoint: str) -> USBType:
     if os.path.exists(os.path.join(mountpoint, METADATA_FILENAME)):
         return USBType.METADATA
 
+    LOGGER.info(
+        f"Disregarding filesystem {mountpoint!r}. Is not forbidden but lacks either "
+        f"{ROBOT_FILE} or {METADATA_FILENAME} file.",
+    )
+
     return USBType.INVALID
 
 
@@ -108,14 +124,7 @@ class FSTabReader(object):
     def __init__(self) -> None:
         self.handle = open(PROC_FILE)
 
-    def __enter__(self):
-        self.handle.__enter__()
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        return self.handle.__exit__(*args, **kwargs)
-
-    def close(self):
+    def close(self) -> None:
         self.handle.close()
 
     def read(self) -> Iterator[Mountpoint]:
@@ -129,7 +138,7 @@ class FSTabReader(object):
                 filesystem=filesystem,
             )
 
-    def watch(self, timeout=None):
+    def watch(self, timeout=None) -> bool:
         _, _, changed = select.select([], [], [self.handle], timeout)
 
         if changed:
@@ -140,7 +149,7 @@ class FSTabReader(object):
 
 class USBHandler(metaclass=ABCMeta):
     @abstractmethod
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, mountpoint_path: str) -> None:
         pass
 
     @abstractmethod
@@ -149,7 +158,7 @@ class USBHandler(metaclass=ABCMeta):
 
 
 class RobotUSBHandler(USBHandler):
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, mountpoint_path: str) -> None:
         LED_CONTROLLER.yellow()
         env = dict(os.environ)
         env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
@@ -177,12 +186,12 @@ class RobotUSBHandler(USBHandler):
     def close(self) -> None:
         self._send_signal(signal.SIGTERM)
         try:
+            # Wait for the process to exit
             self.process.communicate(timeout=5)
         except subprocess.TimeoutExpired:
-            pass
-        self._send_signal(signal.SIGKILL)
+            # The process did not exit after 5 seconds, so kill it.
+            self._send_signal(signal.SIGKILL)
         self._set_leds()
-        self._reset_servo_board()
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -204,51 +213,15 @@ class RobotUSBHandler(USBHandler):
         # Start clean-up
         self.close()
 
-    def _set_leds(self):
+    def _set_leds(self) -> None:
         if self.process.returncode == 0:
             LED_CONTROLLER.green()
         else:
             LED_CONTROLLER.red()
 
-    def _reset_servo_board(self) -> None:
-        """
-        Due to an outstanding bug in the SR servo board firmware
-        (https://github.com/srobo/servo-v4-fw/issues/7),
-        it crashes when 12V power is removed as the user code process exits,
-        rendering its USB interface unusable until the microcontroller is reset.
-
-        Unfortunately there is no way to reset the microcontroller remotely
-        other than by power-cycling the power provided to it over USB. While a
-        few USB hubs support power-cycling individual ports, neither the
-        Raspberry Pi's internal hub nor the model of external hub we currently
-        use support this, so the best we can do is to power-cycle all of the
-        Raspberry Pi's ports at once. On the upside, it means we don't have to
-        care whereabouts on the bus the servo board is connected.
-
-        To be specific, the Raspberry Pi's internal hub does support some level
-        of per-port switching but not enough to be useful to us: port 1 (which
-        is connected to the builtin Ethernet controller) can be switched
-        independently of ports 2 to 5 (the physical USB ports). Ports 2-5 are
-        switched by telling uhubctl to operate on port 2; telling it to operate
-        on ports 3, 4 or 5 has no effect. See the uhubctl README for more info:
-        https://github.com/mvp/uhubctl
-        """
-        command = [
-            "uhubctl",
-            "--loc", "1-1",  # path to the hub to power cycle (this never changes)
-            "--ports", "2",  # only switch ports 2-5
-            "--action", "cycle",
-            "--delay", "1",  # time to wait before powering back on
-        ]
-        LOGGER.info("power-cycling USB bus to reset servo board (srobo/servo-v4-fw#7)")
-        try:
-            subprocess.run(command, check=True)
-        except BaseException:
-            LOGGER.exception("failed to power-cycle USB bus")
-
 
 class MetadataUSBHandler(USBHandler):
-    def __init__(self, mountpoint_path: str):
+    def __init__(self, mountpoint_path: str) -> None:
         pass  # Nothing to do.
 
     def close(self) -> None:
@@ -256,65 +229,49 @@ class MetadataUSBHandler(USBHandler):
 
 
 class AutorunProcessRegistry(object):
-    TYPE_HANDLERS = {
+    TYPE_HANDLERS: dict[USBType, Type[USBHandler]] = {
         USBType.ROBOT: RobotUSBHandler,
         USBType.METADATA: MetadataUSBHandler,
-    }  # type: Dict[USBType, Type[USBHandler]]
+    }
 
     def __init__(self) -> None:
-        self.mountpoint_handlers = {}  # type: Dict[str, USBHandler]
-        self.mountpoint_types = {}  # type: Dict[str, USBType]
+        self.mountpoint_handlers: dict[str, USBHandler] = {}
 
     def update_filesystems(self, mountpoints: Iterator[Mountpoint]) -> None:
-        actual_mountpoint_paths = {
+        actual_mountpoints = {
             x.mountpoint
             for x in mountpoints
             if self._is_viable_mountpoint(x)
         }
 
-        expected_mountpoint_paths = set(self.mountpoint_handlers.keys())
+        expected_mountpoints = set(self.mountpoint_handlers.keys())
 
         # Handle newly detected filesystems
-        for new_mountpoint_path in (
-            actual_mountpoint_paths
-            - expected_mountpoint_paths
-        ):
-            self._detect_new_mountpoint_path(new_mountpoint_path)
+        for new_mountpoint in (actual_mountpoints - expected_mountpoints):
+            self._detect_new_mountpoint_path(new_mountpoint)
 
         # Handle now-dead filesystems
-        for old_mountpoint_path in (
-            expected_mountpoint_paths
-            - actual_mountpoint_paths
-        ):
-            self._detect_dead_mountpoint_path(old_mountpoint_path)
+        for old_mountpoint in (expected_mountpoints - actual_mountpoints):
+            self._detect_dead_mountpoint_path(old_mountpoint)
 
     def _detect_new_mountpoint_path(self, path: str) -> None:
-        LOGGER.info("Found new mountpoint: %s", path)
         usb_type = detect_usb_type(path)
+        LOGGER.info(f"Found new mountpoint: {path} ({usb_type})")
         handler_class = self.TYPE_HANDLERS[usb_type]
         handler = handler_class(path)
         LOGGER.info("  -> launched handler")
         self.mountpoint_handlers[path] = handler
-        self.mountpoint_types[path] = usb_type
 
     def _detect_dead_mountpoint_path(self, path: str) -> None:
-        LOGGER.info("Lost mountpoint: %s", path)
+        LOGGER.info(f"Lost mountpoint: {path}")
         handler = self.mountpoint_handlers[path]
         handler.close()
         LOGGER.info("  -> closed handler")
         del self.mountpoint_handlers[path]
-        del self.mountpoint_types[path]
 
     def _is_viable_mountpoint(self, mountpoint: Mountpoint) -> bool:
         # Drop restricted types
         if mountpoint.filesystem in VERBOTEN_FILESYSTEMS:
-            LOGGER.debug(
-                "Disregarding filesystem %s due to forbidden filesystem "
-                "type %s",
-                mountpoint.mountpoint,
-                mountpoint.filesystem,
-            )
-
             return False
 
         # Sanity: never consider the root filesystem

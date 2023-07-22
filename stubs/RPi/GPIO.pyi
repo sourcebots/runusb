@@ -1,4 +1,5 @@
 BOARD = 10
+BCM = 11
 
 LOW = 0
 HIGH = 1
