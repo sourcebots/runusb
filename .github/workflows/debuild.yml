@@ -16,6 +16,7 @@ jobs:
       - uses: pguyot/arm-runner-action@v2
         with:
           base_image: raspios_lite_arm64:2022-04-04
+          bind_mount_repository: true
           commands: |
             sudo apt-get update
             sudo apt-get install --yes build-essential devscripts debhelper
