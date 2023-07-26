@@ -7,11 +7,12 @@ import os
 import select
 import signal
 import subprocess
+import sys
 import time
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum, unique
 from threading import Thread
-from typing import Iterator, NamedTuple, Type
+from typing import IO, Iterator, NamedTuple, Type
 
 try:
     import RPi.GPIO as GPIO
@@ -19,12 +20,22 @@ try:
 except ImportError:
     IS_PI = False
 
+try:
+    from logger_extras import RelativeTimeFilter, TieredFormatter
+    RELATIVE_LOGGING = True
+    REL_TIME_FILTER: RelativeTimeFilter | None = None
+except ImportError:
+    RELATIVE_LOGGING = False
+
+logging.raiseExceptions = False  # Don't print stack traces when the USB is removed
 LOGGER = logging.getLogger('runusb')
 
 PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'robot.py'
 MOUNTPOINT_DIR = '/media'  # the directory under which all USBs will be mounted
 METADATA_FILENAME = 'metadata.json'
+USERCODE_LEVEL = 35  # Between INFO and WARNING
+logging.addLevelName(USERCODE_LEVEL, "USERCODE")
 
 
 class Mountpoint(NamedTuple):
@@ -159,29 +170,28 @@ class USBHandler(metaclass=ABCMeta):
 
 class RobotUSBHandler(USBHandler):
     def __init__(self, mountpoint_path: str) -> None:
+        self._setup_logging(mountpoint_path)
         LED_CONTROLLER.yellow()
         env = dict(os.environ)
         env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
         self.process = subprocess.Popen(
-            [
-                "script",
-                "--quiet",
-                "--flush",
-                "--return",
-                "--command",
-                f"python3 {ROBOT_FILE}",
-                "log.txt",
-
-            ],
+            [sys.executable, '-u', ROBOT_FILE],
             stdin=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            bufsize=1,  # line buffered
             cwd=mountpoint_path,
             env=env,
+            text=True,
             start_new_session=True,  # Put the process in a new process group
         )
         self.process_start_time = time.time()
 
         self.thread = Thread(target=self._watch_process)
         self.thread.start()
+        self.log_thread = Thread(
+            target=self._log_output, args=(self.process.stdout,))
+        self.log_thread.start()
 
     def close(self) -> None:
         self._send_signal(signal.SIGTERM)
@@ -192,6 +202,7 @@ class RobotUSBHandler(USBHandler):
             # The process did not exit after 5 seconds, so kill it.
             self._send_signal(signal.SIGKILL)
         self._set_leds()
+        self.logger.removeHandler(self.handler)
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -202,6 +213,10 @@ class RobotUSBHandler(USBHandler):
     def _watch_process(self) -> None:
         # Wait for the process to complete
         self.process.wait()
+        if self.process.returncode != 0:
+            self.logger.warning(f"Process exited with code {self.process.returncode}")
+        else:
+            self.logger.info("Your code finished successfully.")
 
         process_lifetime = time.time() - self.process_start_time
 
@@ -212,6 +227,39 @@ class RobotUSBHandler(USBHandler):
 
         # Start clean-up
         self.close()
+
+    def _setup_logging(self, log_dir: str) -> None:
+        self.logger = logging.getLogger('usercode')
+        self.logger.setLevel(logging.DEBUG)
+        self.handler = logging.FileHandler(
+            os.path.join(log_dir, 'log.txt'),
+            mode='w',  # Overwrite the log file
+        )
+        if RELATIVE_LOGGING:
+            REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
+            self.handler.setFormatter(TieredFormatter(
+                fmt='[%(reltime)08.3f - %(levelname)s] %(message)s',
+                level_fmts={
+                    USERCODE_LEVEL: '[%(reltime)08.3f] %(message)s',
+                },
+            ))
+        else:
+            self.handler.setFormatter(logging.Formatter(
+                '[%(asctime)s] %(message)s',
+            ))
+
+        self.logger.addHandler(self.handler)
+        LOGGER.info('Starting user code')
+
+    def _log_output(self, pipe: IO[str]) -> None:
+        """
+        Log the output of the process to the logger.
+
+        This is done in a separate thread to avoid blocking the main thread.
+        """
+        for line in iter(pipe.readline, ''):
+            self.logger.log(USERCODE_LEVEL, line.rstrip('\n'))
+        LOGGER.info('Process output finished')
 
     def _set_leds(self) -> None:
         if self.process.returncode == 0:
@@ -282,8 +330,17 @@ class AutorunProcessRegistry(object):
         return detect_usb_type(mountpoint.mountpoint) is not USBType.INVALID
 
 
+def setup_usercode_logging() -> None:
+    global REL_TIME_FILTER
+    if RELATIVE_LOGGING:
+        usercode_logger = logging.getLogger('usercode')
+        REL_TIME_FILTER = RelativeTimeFilter()
+        usercode_logger.addFilter(REL_TIME_FILTER)
+
+
 def main():
     logging.basicConfig(level=logging.DEBUG)
+    setup_usercode_logging()
 
     fstab_reader = FSTabReader()
 
