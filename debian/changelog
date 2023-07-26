@@ -1,3 +1,15 @@
+runusb (2023.0.0rc1) unstable; urgency=low
+
+  * Drop usbmount dependency
+  * Add timestamps to log messages
+  * Change entrypoint to robot.py
+  * Remove update mechanism
+  * Remove servo hack
+  * Move LED controller into Python
+
+ -- Jake Howard <jhoward@sourcebots.co.uk>  Wed, 26 Jul 2023 20:00:00 +0100
+
+
 runusb (2019.0.0) unstable; urgency=low
 
   * (No changelog)
