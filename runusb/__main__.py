@@ -20,12 +20,9 @@ try:
 except ImportError:
     IS_PI = False
 
-try:
-    from logger_extras import RelativeTimeFilter, TieredFormatter
-    RELATIVE_LOGGING = True
-    REL_TIME_FILTER: RelativeTimeFilter | None = None
-except ImportError:
-    RELATIVE_LOGGING = False
+from logger_extras import RelativeTimeFilter, TieredFormatter
+
+REL_TIME_FILTER: RelativeTimeFilter | None = None
 
 logging.raiseExceptions = False  # Don't print stack traces when the USB is removed
 LOGGER = logging.getLogger('runusb')
@@ -235,18 +232,13 @@ class RobotUSBHandler(USBHandler):
             os.path.join(log_dir, 'log.txt'),
             mode='w',  # Overwrite the log file
         )
-        if RELATIVE_LOGGING:
-            REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
-            self.handler.setFormatter(TieredFormatter(
-                fmt='[%(reltime)08.3f - %(levelname)s] %(message)s',
-                level_fmts={
-                    USERCODE_LEVEL: '[%(reltime)08.3f] %(message)s',
-                },
-            ))
-        else:
-            self.handler.setFormatter(logging.Formatter(
-                '[%(asctime)s] %(message)s',
-            ))
+        REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
+        self.handler.setFormatter(TieredFormatter(
+            fmt='[%(reltime)08.3f - %(levelname)s] %(message)s',
+            level_fmts={
+                USERCODE_LEVEL: '[%(reltime)08.3f] %(message)s',
+            },
+        ))
 
         self.logger.addHandler(self.handler)
         LOGGER.info('Starting user code')
@@ -332,10 +324,9 @@ class AutorunProcessRegistry(object):
 
 def setup_usercode_logging() -> None:
     global REL_TIME_FILTER
-    if RELATIVE_LOGGING:
-        usercode_logger = logging.getLogger('usercode')
-        REL_TIME_FILTER = RelativeTimeFilter()
-        usercode_logger.addFilter(REL_TIME_FILTER)
+    usercode_logger = logging.getLogger('usercode')
+    REL_TIME_FILTER = RelativeTimeFilter()
+    usercode_logger.addFilter(REL_TIME_FILTER)
 
 
 def main():
