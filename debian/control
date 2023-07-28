@@ -11,8 +11,7 @@ Pre-Depends: ${misc:Pre-Depends}, dpkg, python3
 Depends: ${misc:Depends},
          adduser,
          python3,
-         uhubctl,
-         python3-rpi.gpio,
+         uhubctl
 Description: Automagic running of USB sticks
  Runs .autorun files from mounted USB sticks - or other filesystems -
  automatically, and safely containerised.
