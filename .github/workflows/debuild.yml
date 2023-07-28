@@ -19,8 +19,8 @@ jobs:
           bind_mount_repository: true
           commands: |
             sudo apt-get update
-            sudo apt-get install --yes build-essential devscripts debhelper
-            debuild -uc -us
+            sudo apt-get install --yes build-essential devscripts debhelper dh-virtualenv
+            debuild -uc -us -b
             cp ../*.deb .
       - name: Get debian package name
         run: |
