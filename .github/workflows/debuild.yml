@@ -21,7 +21,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install --yes build-essential devscripts debhelper dh-virtualenv python3-virtualenv
             debuild -uc -us -b
-            cp ../*.deb .
+            cp ../runusb_*.deb .
       - name: Get debian package name
         run: |
           echo "runusb_deb_path=$(realpath *.deb)" >> $GITHUB_ENV
@@ -52,7 +52,7 @@ jobs:
       - name: Build package
         run: |
           debuild -uc -us -b
-          cp ../*.deb .
+          cp ../runusb_*.deb .
       - name: Get debian package name
         run: |
           echo "runusb_deb_path=$(realpath *.deb)" >> $GITHUB_ENV
