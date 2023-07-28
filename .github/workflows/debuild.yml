@@ -19,7 +19,7 @@ jobs:
           bind_mount_repository: true
           commands: |
             sudo apt-get update
-            sudo apt-get install --yes build-essential devscripts debhelper dh-virtualenv
+            sudo apt-get install --yes build-essential devscripts debhelper dh-virtualenv python3-virtualenv
             debuild -uc -us -b
             cp ../*.deb .
       - name: Get debian package name
@@ -48,7 +48,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes build-essential devscripts debhelper dh-virtualenv
+          sudo apt-get install --yes build-essential devscripts debhelper dh-virtualenv python3-virtualenv
       - name: Build package
         run: |
           debuild -uc -us -b
