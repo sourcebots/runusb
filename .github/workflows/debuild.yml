@@ -41,7 +41,7 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
 
-  x86:
+  amd64:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -60,7 +60,7 @@ jobs:
       - name: Save deb artifact
         uses: actions/upload-artifact@v3
         with:
-          name: runusb-x86
+          name: runusb-amd64
           path: ${{ env.runusb_deb_path }}
       - name: Upload deb to release
         uses: svenstaro/upload-release-action@v2
