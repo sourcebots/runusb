@@ -9,7 +9,7 @@ on:
   pull_request:
 
 jobs:
-  arm:
+  arm64:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -37,7 +37,7 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ env.runusb_deb_path }}
-          asset_name: ${{ env.runusb_deb_name }}
+          asset_name: runusb-arm64
           tag: ${{ github.ref }}
           overwrite: true
 
@@ -60,7 +60,7 @@ jobs:
       - name: Save deb artifact
         uses: actions/upload-artifact@v3
         with:
-          name: runusb
+          name: runusb-x86
           path: ${{ env.runusb_deb_path }}
       - name: Upload deb to release
         uses: svenstaro/upload-release-action@v2
