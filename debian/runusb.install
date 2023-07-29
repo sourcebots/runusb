@@ -1,2 +1,0 @@
-runusb                usr/bin
-runusb.service        lib/systemd/system/
