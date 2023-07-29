@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import atexit
+import itertools
 import logging
 import os
 import select
@@ -31,6 +32,7 @@ LOGGER = logging.getLogger('runusb')
 PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'robot.py'
 METADATA_FILENAME = 'metadata.json'
+LOG_NAME = 'log.txt'
 USERCODE_LEVEL = 35  # Between INFO and WARNING
 logging.addLevelName(USERCODE_LEVEL, "USERCODE")
 
@@ -231,8 +233,9 @@ class RobotUSBHandler(USBHandler):
     def _setup_logging(self, log_dir: str) -> None:
         self.logger = logging.getLogger('usercode')
         self.logger.setLevel(logging.DEBUG)
+        self._rotate_old_logs(log_dir)
         self.handler = logging.FileHandler(
-            os.path.join(log_dir, 'log.txt'),
+            os.path.join(log_dir, LOG_NAME),
             mode='w',  # Overwrite the log file
         )
         REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
@@ -260,6 +263,22 @@ class RobotUSBHandler(USBHandler):
             LED_CONTROLLER.green()
         else:
             LED_CONTROLLER.red()
+
+    def _rotate_old_logs(self, log_dir: str) -> None:
+        """
+        Add a suffix to the old log file, if it exists.
+
+        Suffixes are of the form log-<n>.txt, where <n> is the smallest
+        integer that didn't already exist.
+        """
+        if not os.path.exists(os.path.join(log_dir, LOG_NAME)):
+            return
+        for i in itertools.count(1):
+            new_name = os.path.join(log_dir, f'log-{i}.txt')
+            if not os.path.exists(new_name):
+                break
+
+        os.rename(os.path.join(log_dir, LOG_NAME), new_name)
 
 
 class MetadataUSBHandler(USBHandler):
