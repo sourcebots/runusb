@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import atexit
 import itertools
+import json
 import logging
 import os
 import select
@@ -23,6 +24,11 @@ except ImportError:
 
 from logger_extras import RelativeTimeFilter, TieredFormatter
 
+try:
+    from logger_extras import MQTTHandler  # type: ignore[attr-defined]
+except ImportError:
+    MQTTHandler = None
+
 REL_TIME_FILTER: RelativeTimeFilter | None = None
 
 
@@ -38,6 +44,19 @@ logging.addLevelName(USERCODE_LEVEL, "USERCODE")
 
 # the directory under which all USBs will be mounted
 MOUNTPOINT_DIR = os.environ.get('RUNUSB_MOUNTPOINT_DIR', '/media')
+# This will be populated if we have the config file
+# url format: mqtt[s]://[<username>[:<password>]@]<host>[:<port>]/<topic_root>
+MQTT_URL = None
+MQTT_CONFIG_FILE = '/etc/sbot/mqtt.conf'
+
+
+class MQTTVariables(NamedTuple):
+    host: str
+    port: int | None
+    topic_prefix: str
+    use_tls: bool
+    username: str | None
+    password: str | None
 
 
 class Mountpoint(NamedTuple):
@@ -176,6 +195,9 @@ class RobotUSBHandler(USBHandler):
         LED_CONTROLLER.yellow()
         env = dict(os.environ)
         env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
+        if MQTT_URL is not None:
+            # pass the mqtt url to the robot for camera images
+            env["SBOT_MQTT_URL"] = MQTT_URL
         self.process = subprocess.Popen(
             [sys.executable, '-u', ROBOT_FILE],
             stdin=subprocess.DEVNULL,
@@ -343,11 +365,78 @@ class AutorunProcessRegistry(object):
         return detect_usb_type(mountpoint.mountpoint) is not USBType.INVALID
 
 
+def set_mqtt_url(config: MQTTVariables) -> None:
+    global MQTT_URL
+    if config.username is not None and config.password is not None:
+        auth = f"{config.username}:{config.password}@"
+    elif config.username is not None:
+        auth = f"{config.username}@"
+    else:
+        auth = ""
+
+    port_str = (f":{config.port}" if config.port is not None else "")
+    scheme = 'mqtts' if config.use_tls else 'mqtt'
+
+    MQTT_URL = (
+        f"{scheme}://{auth}{config.host}{port_str}/{config.topic_prefix}"
+    )
+
+
+def read_mqtt_config_file() -> MQTTVariables | None:
+    """
+    Read the MQTT config file and return the config.
+
+    Returns None if the file does not exist or is invalid.
+    """
+    if not os.path.exists(MQTT_CONFIG_FILE):
+        return None
+
+    try:
+        with open(MQTT_CONFIG_FILE) as f:
+            config_dict = json.load(f)
+            config = MQTTVariables(
+                host=config_dict['host'],
+                port=config_dict.get('port', None),
+                topic_prefix=config_dict['topic_prefix'],
+                use_tls=config_dict.get('use_tls', False),
+                username=config_dict.get('username', None),
+                password=config_dict.get('password', None),
+            )
+            set_mqtt_url(config)
+            return config
+    except Exception as e:
+        LOGGER.error(f"Failed to read MQTT config file: {e}")
+        return None
+
+
 def setup_usercode_logging() -> None:
     global REL_TIME_FILTER
     usercode_logger = logging.getLogger('usercode')
     REL_TIME_FILTER = RelativeTimeFilter()
     usercode_logger.addFilter(REL_TIME_FILTER)
+
+    if MQTTHandler is not None:
+        # If we have relative logging, we should also have the MQTT handler
+        mqtt_config = read_mqtt_config_file()
+
+        if mqtt_config is not None:
+            handler = MQTTHandler(
+                host=mqtt_config.host,
+                topic=f"{mqtt_config.topic_prefix}/logs",
+                port=mqtt_config.port,
+                use_tls=mqtt_config.use_tls,
+                username=mqtt_config.username,
+                password=mqtt_config.password,
+            )
+
+            handler.setLevel(logging.INFO)
+            handler.setFormatter(TieredFormatter(
+                fmt='[%(reltime)08.3f - %(levelname)s] %(message)s',
+                level_fmts={
+                    USERCODE_LEVEL: '[%(reltime)08.3f] %(message)s',
+                },
+            ))
+            usercode_logger.addHandler(handler)
 
 
 def main():
