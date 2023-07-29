@@ -31,6 +31,7 @@ LOGGER = logging.getLogger('runusb')
 PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'robot.py'
 METADATA_FILENAME = 'metadata.json'
+LOG_NAME = 'log.txt'
 USERCODE_LEVEL = 35  # Between INFO and WARNING
 logging.addLevelName(USERCODE_LEVEL, "USERCODE")
 
@@ -233,7 +234,7 @@ class RobotUSBHandler(USBHandler):
         self.logger.setLevel(logging.DEBUG)
         self._rotate_old_logs(log_dir)
         self.handler = logging.FileHandler(
-            os.path.join(log_dir, 'log.txt'),
+            os.path.join(log_dir, LOG_NAME),
             mode='w',  # Overwrite the log file
         )
         REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
@@ -269,7 +270,7 @@ class RobotUSBHandler(USBHandler):
         Suffixes are of the form log-<n>.txt, where <n> is the smallest
         integer that didn't already exist.
         """
-        if not os.path.exists(os.path.join(log_dir, 'log.txt')):
+        if not os.path.exists(os.path.join(log_dir, LOG_NAME)):
             return
         i = 1
         while True:
@@ -277,7 +278,7 @@ class RobotUSBHandler(USBHandler):
             if not os.path.exists(new_name):
                 break
             i += 1
-        os.rename(os.path.join(log_dir, 'log.txt'), new_name)
+        os.rename(os.path.join(log_dir, LOG_NAME), new_name)
 
 
 class MetadataUSBHandler(USBHandler):
