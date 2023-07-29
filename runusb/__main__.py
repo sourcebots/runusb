@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import atexit
+import itertools
 import logging
 import os
 import select
@@ -272,12 +273,11 @@ class RobotUSBHandler(USBHandler):
         """
         if not os.path.exists(os.path.join(log_dir, LOG_NAME)):
             return
-        i = 1
-        while True:
+        for i in itertools.count(1):
             new_name = os.path.join(log_dir, f'log-{i}.txt')
             if not os.path.exists(new_name):
                 break
-            i += 1
+
         os.rename(os.path.join(log_dir, LOG_NAME), new_name)
 
 
