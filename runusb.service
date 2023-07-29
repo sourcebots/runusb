@@ -1,8 +1,0 @@
-[Unit]
-Description=Automatic running of USB devices
-
-[Service]
-ExecStart=/usr/bin/runusb
-
-[Install]
-WantedBy=multi-user.target
