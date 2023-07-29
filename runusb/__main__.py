@@ -231,6 +231,7 @@ class RobotUSBHandler(USBHandler):
     def _setup_logging(self, log_dir: str) -> None:
         self.logger = logging.getLogger('usercode')
         self.logger.setLevel(logging.DEBUG)
+        self._rotate_old_logs(log_dir)
         self.handler = logging.FileHandler(
             os.path.join(log_dir, 'log.txt'),
             mode='w',  # Overwrite the log file
@@ -260,6 +261,23 @@ class RobotUSBHandler(USBHandler):
             LED_CONTROLLER.green()
         else:
             LED_CONTROLLER.red()
+
+    def _rotate_old_logs(self, log_dir: str) -> None:
+        """
+        Add a suffix to the old log file, if it exists.
+
+        Suffixes are of the form log-<n>.txt, where <n> is the smallest
+        integer that didn't already exist.
+        """
+        if not os.path.exists(os.path.join(log_dir, 'log.txt')):
+            return
+        i = 1
+        while True:
+            new_name = os.path.join(log_dir, f'log-{i}.txt')
+            if not os.path.exists(new_name):
+                break
+            i += 1
+        os.rename(os.path.join(log_dir, 'log.txt'), new_name)
 
 
 class MetadataUSBHandler(USBHandler):
