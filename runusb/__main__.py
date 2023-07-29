@@ -30,10 +30,12 @@ LOGGER = logging.getLogger('runusb')
 
 PROC_FILE = '/proc/mounts'
 ROBOT_FILE = 'robot.py'
-MOUNTPOINT_DIR = '/media'  # the directory under which all USBs will be mounted
 METADATA_FILENAME = 'metadata.json'
 USERCODE_LEVEL = 35  # Between INFO and WARNING
 logging.addLevelName(USERCODE_LEVEL, "USERCODE")
+
+# the directory under which all USBs will be mounted
+MOUNTPOINT_DIR = os.environ.get('RUNUSB_MOUNTPOINT_DIR', '/media')
 
 
 class Mountpoint(NamedTuple):
