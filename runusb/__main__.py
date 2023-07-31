@@ -427,6 +427,7 @@ def setup_usercode_logging() -> None:
                 use_tls=mqtt_config.use_tls,
                 username=mqtt_config.username,
                 password=mqtt_config.password,
+                connected_topic=f"{mqtt_config.topic_prefix}/connected",
             )
 
             handler.setLevel(logging.INFO)
