@@ -41,6 +41,7 @@ METADATA_FILENAME = 'metadata.json'
 LOG_NAME = 'log.txt'
 USERCODE_LEVEL = 35  # Between INFO and WARNING
 logging.addLevelName(USERCODE_LEVEL, "USERCODE")
+USERCODE_LOGGER = logging.getLogger('usercode')
 
 # the directory under which all USBs will be mounted
 MOUNTPOINT_DIR = os.environ.get('RUNUSB_MOUNTPOINT_DIR', '/media')
@@ -226,7 +227,7 @@ class RobotUSBHandler(USBHandler):
             # The process did not exit after 5 seconds, so kill it.
             self._send_signal(signal.SIGKILL)
         self._set_leds()
-        self.logger.removeHandler(self.handler)
+        USERCODE_LOGGER.removeHandler(self.handler)
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -238,9 +239,9 @@ class RobotUSBHandler(USBHandler):
         # Wait for the process to complete
         self.process.wait()
         if self.process.returncode != 0:
-            self.logger.warning(f"Process exited with code {self.process.returncode}")
+            USERCODE_LOGGER.warning(f"Process exited with code {self.process.returncode}")
         else:
-            self.logger.info("Your code finished successfully.")
+            USERCODE_LOGGER.info("Your code finished successfully.")
 
         process_lifetime = time.time() - self.process_start_time
 
@@ -253,8 +254,6 @@ class RobotUSBHandler(USBHandler):
         self.close()
 
     def _setup_logging(self, log_dir: str) -> None:
-        self.logger = logging.getLogger('usercode')
-        self.logger.setLevel(logging.DEBUG)
         self._rotate_old_logs(log_dir)
         self.handler = logging.FileHandler(
             os.path.join(log_dir, LOG_NAME),
@@ -267,7 +266,7 @@ class RobotUSBHandler(USBHandler):
                 USERCODE_LEVEL: '[%(reltime)08.3f] %(message)s',
             },
         ))
-        self.logger.addHandler(self.handler)
+        USERCODE_LOGGER.addHandler(self.handler)
         LOGGER.info('Starting user code')
 
     def _log_output(self, pipe: IO[str]) -> None:
@@ -277,7 +276,7 @@ class RobotUSBHandler(USBHandler):
         This is done in a separate thread to avoid blocking the main thread.
         """
         for line in iter(pipe.readline, ''):
-            self.logger.log(USERCODE_LEVEL, line.rstrip('\n'))
+            USERCODE_LOGGER.log(USERCODE_LEVEL, line.rstrip('\n'))
         LOGGER.info('Process output finished')
 
     def _set_leds(self) -> None:
@@ -411,9 +410,9 @@ def read_mqtt_config_file() -> MQTTVariables | None:
 
 def setup_usercode_logging() -> None:
     global REL_TIME_FILTER
-    usercode_logger = logging.getLogger('usercode')
     REL_TIME_FILTER = RelativeTimeFilter()
-    usercode_logger.addFilter(REL_TIME_FILTER)
+    USERCODE_LOGGER.addFilter(REL_TIME_FILTER)
+    USERCODE_LOGGER.setLevel(logging.DEBUG)
 
     if MQTTHandler is not None:
         # If we have relative logging, we should also have the MQTT handler
@@ -437,7 +436,7 @@ def setup_usercode_logging() -> None:
                     USERCODE_LEVEL: '[%(reltime)08.3f] %(message)s',
                 },
             ))
-            usercode_logger.addHandler(handler)
+            USERCODE_LOGGER.addHandler(handler)
 
 
 def main():
