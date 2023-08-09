@@ -229,6 +229,8 @@ class RobotUSBHandler(USBHandler):
         # Ensure logs have finished writing
         self.log_thread.join()
 
+        # Explicitly close handler before removing it
+        self.handler.close()
         self.logger.removeHandler(self.handler)
 
         # Sync filesystems before reporting status
