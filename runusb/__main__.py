@@ -225,6 +225,10 @@ class RobotUSBHandler(USBHandler):
         except subprocess.TimeoutExpired:
             # The process did not exit after 5 seconds, so kill it.
             self._send_signal(signal.SIGKILL)
+
+        # Ensure logs have finished writing
+        self.log_thread.join()
+
         self._set_leds()
         self.logger.removeHandler(self.handler)
 
