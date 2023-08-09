@@ -229,8 +229,12 @@ class RobotUSBHandler(USBHandler):
         # Ensure logs have finished writing
         self.log_thread.join()
 
-        self._set_leds()
         self.logger.removeHandler(self.handler)
+
+        # Sync filesystems before reporting status
+        os.sync()
+
+        self._set_leds()
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
