@@ -286,8 +286,13 @@ class RobotUSBHandler(USBHandler):
 
         This is done in a separate thread to avoid blocking the main thread.
         """
+        log_fileno = self.handler.stream.fileno()
+
         for line in iter(pipe.readline, ''):
             self.logger.log(USERCODE_LEVEL, line.rstrip('\n'))
+
+            # Forcefully sync the file, regardless of how it was mounted
+            os.fsync(log_fileno)
         LOGGER.info('Process output finished')
 
     def _set_leds(self) -> None:
