@@ -230,8 +230,18 @@ class RobotUSBHandler(USBHandler):
         except subprocess.TimeoutExpired:
             # The process did not exit after 5 seconds, so kill it.
             self._send_signal(signal.SIGKILL)
-        self._set_leds()
+
+        # Ensure logs have finished writing
+        self.log_thread.join()
+
+        # Explicitly close handler before removing it
+        self.handler.close()
         self.logger.removeHandler(self.handler)
+
+        # Sync filesystems before reporting status
+        os.sync()
+
+        self._set_leds()
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -281,8 +291,13 @@ class RobotUSBHandler(USBHandler):
 
         This is done in a separate thread to avoid blocking the main thread.
         """
+        log_fileno = self.handler.stream.fileno()
+
         for line in iter(pipe.readline, ''):
             self.logger.log(USERCODE_LEVEL, line.rstrip('\n'))
+
+            # Forcefully sync the file, regardless of how it was mounted
+            os.fsync(log_fileno)
         LOGGER.info('Process output finished')
 
     def _set_leds(self) -> None:
