@@ -163,10 +163,10 @@ class FSTabReader(object):
         self.handle.seek(0)
 
         for line in self.handle:
-            (_, mountpoint, filesystem, _, _, _) = line.split(' ')
+            (_, mountpoint_raw, filesystem, _, _, _) = line.split(' ')
 
             yield Mountpoint(
-                mountpoint=mountpoint,
+                mountpoint=self.mountpoint_decode(mountpoint_raw),
                 filesystem=filesystem,
             )
 
@@ -177,6 +177,11 @@ class FSTabReader(object):
             LOGGER.debug("Detected change in procfile")
 
         return bool(changed)
+
+    @staticmethod
+    def mountpoint_decode(mountpoint_raw: str) -> str:
+        """Decode whitespace characters in mountpoint path."""
+        return mountpoint_raw.replace('\\040', ' ').replace('\\011', '\t')
 
 
 class USBHandler(metaclass=ABCMeta):
