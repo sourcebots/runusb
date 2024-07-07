@@ -86,12 +86,24 @@ VERBOTEN_FILESYSTEMS = (
 )
 
 
+class LedStatus(Enum):
+    NoUSB = (False, False, False)  # Off
+    Running = (False, False, True)  # Blue
+    Killed = (True, False, True)  # Magenta
+    Finished = (False, True, False)  # Green
+    Crashed = (True, False, False)  # Red
+
+
 class LEDController():
     @unique
     class LEDs(IntEnum):
-        RED = 2
-        YELLOW = 3
-        GREEN = 4
+        BOOT_100 = 13
+        CODE = 11
+        COMP = 16
+        WIFI = 8
+        STATUS_RED = 26
+        STATUS_GREEN = 20
+        STATUS_BLUE = 21
 
     def __init__(self) -> None:
         if IS_PI:
@@ -100,23 +112,27 @@ class LEDController():
             GPIO.setmode(GPIO.BCM)
             GPIO.setup([led.value for led in self.LEDs], GPIO.OUT, initial=GPIO.LOW)
 
-    def red(self) -> None:
+    def mark_start(self) -> None:
         if IS_PI:
-            GPIO.output(self.LEDs.RED, GPIO.HIGH)
-            GPIO.output(self.LEDs.YELLOW, GPIO.LOW)
-            GPIO.output(self.LEDs.GREEN, GPIO.LOW)
+            GPIO.output(self.LEDs.BOOT_100, GPIO.HIGH)
 
-    def yellow(self) -> None:
+    def set_comp(self, value: bool) -> None:
         if IS_PI:
-            GPIO.output(self.LEDs.RED, GPIO.LOW)
-            GPIO.output(self.LEDs.YELLOW, GPIO.HIGH)
-            GPIO.output(self.LEDs.GREEN, GPIO.LOW)
+            GPIO.output(self.LEDs.COMP, GPIO.HIGH if value else GPIO.LOW)
 
-    def green(self) -> None:
+    def set_code(self, value: bool) -> None:
         if IS_PI:
-            GPIO.output(self.LEDs.RED, GPIO.LOW)
-            GPIO.output(self.LEDs.YELLOW, GPIO.LOW)
-            GPIO.output(self.LEDs.GREEN, GPIO.HIGH)
+            GPIO.output(self.LEDs.CODE, GPIO.HIGH if value else GPIO.LOW)
+
+    def set_wifi(self, value: bool) -> None:
+        if IS_PI:
+            GPIO.output(self.LEDs.WIFI, GPIO.HIGH if value else GPIO.LOW)
+
+    def set_status(self, value: LedStatus) -> None:
+        if IS_PI:
+            GPIO.output(self.LEDs.STATUS_RED, GPIO.HIGH if value.value[0] else GPIO.LOW)
+            GPIO.output(self.LEDs.STATUS_GREEN, GPIO.HIGH if value.value[1] else GPIO.LOW)
+            GPIO.output(self.LEDs.STATUS_BLUE, GPIO.HIGH if value.value[2] else GPIO.LOW)
 
 
 LED_CONTROLLER = LEDController()
@@ -198,7 +214,8 @@ class USBHandler(metaclass=ABCMeta):
 class RobotUSBHandler(USBHandler):
     def __init__(self, mountpoint_path: str) -> None:
         self._setup_logging(mountpoint_path)
-        LED_CONTROLLER.yellow()
+        LED_CONTROLLER.set_code(True)
+        LED_CONTROLLER.set_status(LedStatus.Running)
         env = dict(os.environ)
         env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
         if MQTT_URL is not None:
@@ -223,7 +240,7 @@ class RobotUSBHandler(USBHandler):
             target=self._log_output, args=(self.process.stdout,))
         self.log_thread.start()
 
-    def close(self) -> None:
+    def cleanup(self) -> None:
         self._send_signal(signal.SIGTERM)
         try:
             # Wait for the process to exit
@@ -232,6 +249,11 @@ class RobotUSBHandler(USBHandler):
             # The process did not exit after 5 seconds, so kill it.
             self._send_signal(signal.SIGKILL)
         self._set_leds()
+
+    def close(self) -> None:
+        self.cleanup()
+        LED_CONTROLLER.set_status(LedStatus.NoUSB)
+        LED_CONTROLLER.set_code(False)
         USERCODE_LOGGER.removeHandler(self.handler)
 
     def _send_signal(self, sig: int) -> None:
@@ -256,7 +278,7 @@ class RobotUSBHandler(USBHandler):
             time.sleep(1 - process_lifetime)
 
         # Start clean-up
-        self.close()
+        self.cleanup()
 
     def _setup_logging(self, log_dir: str) -> None:
         self._rotate_old_logs(log_dir)
@@ -286,9 +308,9 @@ class RobotUSBHandler(USBHandler):
 
     def _set_leds(self) -> None:
         if self.process.returncode == 0:
-            LED_CONTROLLER.green()
+            LED_CONTROLLER.set_status(LedStatus.Finished)
         else:
-            LED_CONTROLLER.red()
+            LED_CONTROLLER.set_status(LedStatus.Crashed)
 
     def _rotate_old_logs(self, log_dir: str) -> None:
         """
@@ -309,10 +331,12 @@ class RobotUSBHandler(USBHandler):
 
 class MetadataUSBHandler(USBHandler):
     def __init__(self, mountpoint_path: str) -> None:
-        pass  # Nothing to do.
+        # NOTE the comp LED just represents the presence of a comp mode USB
+        # not whether comp mode is enabled
+        LED_CONTROLLER.set_comp(True)
 
     def close(self) -> None:
-        pass  # Nothing to do.
+        LED_CONTROLLER.set_comp(False)
 
 
 class AutorunProcessRegistry(object):
@@ -452,6 +476,7 @@ def main():
 
     registry = AutorunProcessRegistry()
 
+    LED_CONTROLLER.mark_start()
     # Initial pass (in case an autorun FS is already mounted)
     registry.update_filesystems(fstab_reader.read())
 
