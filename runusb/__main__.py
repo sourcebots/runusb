@@ -456,6 +456,8 @@ def setup_usercode_logging() -> None:
                 username=mqtt_config.username,
                 password=mqtt_config.password,
                 connected_topic=f"{mqtt_config.topic_prefix}/connected",
+                connected_callback=lambda: LED_CONTROLLER.set_wifi(True),
+                disconnected_callback=lambda: LED_CONTROLLER.set_wifi(False),
             )
 
             handler.setLevel(logging.INFO)
