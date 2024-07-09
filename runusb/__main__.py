@@ -48,6 +48,8 @@ MOUNTPOINT_DIR = os.environ.get('RUNUSB_MOUNTPOINT_DIR', '/media')
 # This will be populated if we have the config file
 # url format: mqtt[s]://[<username>[:<password>]@]<host>[:<port>]/<topic_root>
 MQTT_URL = None
+MQTT_TOPIC_ROOT = ''
+MQTT_CLIENT = None
 MQTT_CONFIG_FILE = '/etc/sbot/mqtt.conf'
 
 
@@ -134,6 +136,15 @@ class LEDController():
             GPIO.output(self.LEDs.STATUS_GREEN, GPIO.HIGH if value.value[1] else GPIO.LOW)
             GPIO.output(self.LEDs.STATUS_BLUE, GPIO.HIGH if value.value[2] else GPIO.LOW)
 
+        # Also send the status over MQTT
+        if MQTT_CLIENT is not None:
+            MQTT_CLIENT.publish(
+                f'{MQTT_TOPIC_ROOT}/state',
+                json.dumps({"state": value.name}),
+                qos=1,
+                retain=True,
+            )
+
 
 LED_CONTROLLER = LEDController()
 
@@ -216,6 +227,7 @@ class RobotUSBHandler(USBHandler):
         self._setup_logging(mountpoint_path)
         LED_CONTROLLER.set_code(True)
         LED_CONTROLLER.set_status(LedStatus.Running)
+
         env = dict(os.environ)
         env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
         if MQTT_URL is not None:
@@ -248,7 +260,6 @@ class RobotUSBHandler(USBHandler):
         except subprocess.TimeoutExpired:
             # The process did not exit after 5 seconds, so kill it.
             self._send_signal(signal.SIGKILL)
-        self._set_leds()
 
     def close(self) -> None:
         self.cleanup()
@@ -267,8 +278,10 @@ class RobotUSBHandler(USBHandler):
         self.process.wait()
         if self.process.returncode != 0:
             USERCODE_LOGGER.warning(f"Process exited with code {self.process.returncode}")
+            LED_CONTROLLER.set_status(LedStatus.Crashed)
         else:
             USERCODE_LOGGER.info("Your code finished successfully.")
+            LED_CONTROLLER.set_status(LedStatus.Finished)
 
         process_lifetime = time.time() - self.process_start_time
 
@@ -305,12 +318,6 @@ class RobotUSBHandler(USBHandler):
         for line in iter(pipe.readline, ''):
             USERCODE_LOGGER.log(USERCODE_LEVEL, line.rstrip('\n'))
         LOGGER.info('Process output finished')
-
-    def _set_leds(self) -> None:
-        if self.process.returncode == 0:
-            LED_CONTROLLER.set_status(LedStatus.Finished)
-        else:
-            LED_CONTROLLER.set_status(LedStatus.Crashed)
 
     def _rotate_old_logs(self, log_dir: str) -> None:
         """
@@ -438,7 +445,7 @@ def read_mqtt_config_file() -> MQTTVariables | None:
 
 
 def setup_usercode_logging() -> None:
-    global REL_TIME_FILTER
+    global REL_TIME_FILTER, MQTT_CLIENT, MQTT_TOPIC_ROOT
     REL_TIME_FILTER = RelativeTimeFilter()
     USERCODE_LOGGER.addFilter(REL_TIME_FILTER)
     USERCODE_LOGGER.setLevel(logging.DEBUG)
@@ -459,6 +466,8 @@ def setup_usercode_logging() -> None:
                 connected_callback=lambda: LED_CONTROLLER.set_wifi(True),
                 disconnected_callback=lambda: LED_CONTROLLER.set_wifi(False),
             )
+            MQTT_CLIENT = handler.mqtt
+            MQTT_TOPIC_ROOT = mqtt_config.topic_prefix
 
             handler.setLevel(logging.INFO)
             handler.setFormatter(TieredFormatter(
@@ -479,6 +488,8 @@ def main():
     registry = AutorunProcessRegistry()
 
     LED_CONTROLLER.mark_start()
+    LED_CONTROLLER.set_status(LedStatus.NoUSB)
+
     # Initial pass (in case an autorun FS is already mounted)
     registry.update_filesystems(fstab_reader.read())
 
