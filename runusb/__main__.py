@@ -108,9 +108,31 @@ class LEDController():
     def __init__(self) -> None:
         if IS_PI:
             LOGGER.debug("Configuring LED controller")
+            self._register_exit()
             atexit.register(GPIO.cleanup)  # type: ignore[attr-defined]
             GPIO.setmode(GPIO.BCM)
             GPIO.setup([led.value for led in self.LEDs], GPIO.OUT, initial=GPIO.LOW)
+
+    def _register_exit(self) -> None:
+        """
+        Ensure `atexit` triggers on `SIGTERM`.
+
+        > The functions registered via [`atexit`] are not called when the program is
+        killed by a signal not handled by Python
+        """
+
+        if signal.getsignal(signal.SIGTERM) != signal.SIG_DFL:
+            # If a signal handler is already present for SIGTERM,
+            # this is sufficient for `atexit` to trigger, so do nothing.
+            return
+
+        def handle_signal(handled_signum: int, frame) -> None:
+            """Semi-default signal handler for SIGTERM, enough for atexit."""
+            USERCODE_LOGGER.error(signal.strsignal(handled_signum))
+            exit(128 + handled_signum)  # 143 for SIGTERM
+
+        # Add the null-ish signal handler
+        signal.signal(signal.SIGTERM, handle_signal)
 
     def mark_start(self) -> None:
         if IS_PI:
