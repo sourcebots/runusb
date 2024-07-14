@@ -10,6 +10,7 @@ import select
 import signal
 import subprocess
 import sys
+import uuid
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum, unique
 from threading import Thread
@@ -50,6 +51,9 @@ MQTT_URL = None
 MQTT_TOPIC_ROOT = ''
 MQTT_CLIENT = None
 MQTT_CONFIG_FILE = '/etc/sbot/mqtt.conf'
+MQTT_EXTRA_DATA = {
+    "run_uuid": "",
+}
 
 
 class MQTTVariables(NamedTuple):
@@ -254,6 +258,9 @@ class RobotUSBHandler(USBHandler):
         if MQTT_URL is not None:
             # pass the mqtt url to the robot for camera images
             env["SBOT_MQTT_URL"] = MQTT_URL
+        run_uuid = uuid.uuid4().hex
+        MQTT_EXTRA_DATA["run_uuid"] = run_uuid
+        env["run_uuid"] = run_uuid
         self.process = subprocess.Popen(
             [sys.executable, '-u', ROBOT_FILE],
             stdin=subprocess.DEVNULL,
@@ -286,6 +293,7 @@ class RobotUSBHandler(USBHandler):
         LED_CONTROLLER.set_status(LedStatus.NoUSB)
         LED_CONTROLLER.set_code(False)
         USERCODE_LOGGER.removeHandler(self.handler)
+        MQTT_EXTRA_DATA["run_uuid"] = ""  # Reset the run UUID
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -478,6 +486,7 @@ def setup_usercode_logging() -> None:
                 connected_topic=f"{mqtt_config.topic_prefix}/connected",
                 connected_callback=lambda: LED_CONTROLLER.set_wifi(True),
                 disconnected_callback=lambda: LED_CONTROLLER.set_wifi(False),
+                extra_data=MQTT_EXTRA_DATA,
             )
             MQTT_CLIENT = handler.mqtt
             MQTT_TOPIC_ROOT = mqtt_config.topic_prefix
