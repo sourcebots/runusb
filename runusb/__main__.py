@@ -330,6 +330,9 @@ class RobotUSBHandler(USBHandler):
             os.path.join(log_dir, LOG_NAME),
             mode='w',  # Overwrite the log file
         )
+        # Write through to avoid buffering the log file since the USB might be
+        # removed at any time
+        self.handler.stream.reconfigure(write_through=True)
         REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
         self.handler.setFormatter(TieredFormatter(
             fmt='[%(reltime)08.3f - %(levelname)s] %(message)s',
