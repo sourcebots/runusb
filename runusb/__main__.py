@@ -293,6 +293,9 @@ class RobotUSBHandler(USBHandler):
         self.cleanup()
         LED_CONTROLLER.set_status(LedStatus.NoUSB)
         LED_CONTROLLER.set_code(False)
+
+        # Explicitly close handler before removing it
+        self.handler.close()
         USERCODE_LOGGER.removeHandler(self.handler)
 
     def _send_signal(self, sig: int) -> None:
