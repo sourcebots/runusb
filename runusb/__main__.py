@@ -10,7 +10,6 @@ import select
 import signal
 import subprocess
 import sys
-import time
 from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum, unique
 from threading import Thread
@@ -266,7 +265,6 @@ class RobotUSBHandler(USBHandler):
             text=True,
             start_new_session=True,  # Put the process in a new process group
         )
-        self.process_start_time = time.time()
 
         self.thread = Thread(target=self._watch_process)
         self.thread.start()
@@ -304,13 +302,6 @@ class RobotUSBHandler(USBHandler):
         else:
             USERCODE_LOGGER.info("Your code finished successfully.")
             LED_CONTROLLER.set_status(LedStatus.Finished)
-
-        process_lifetime = time.time() - self.process_start_time
-
-        # If the process was alive for less than a second, delay the clean-up.
-        # This ensures the LEDs stay on for a noticeable amount of time.
-        if process_lifetime < 1:
-            time.sleep(1 - process_lifetime)
 
         # Start clean-up
         self.cleanup()
