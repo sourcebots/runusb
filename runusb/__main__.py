@@ -286,6 +286,8 @@ class RobotUSBHandler(USBHandler):
         # Ensure logs have finished writing
         self.log_thread.join()
 
+        # Sync filesystems before reporting status
+        os.sync()
 
     def close(self) -> None:
         self.cleanup()
