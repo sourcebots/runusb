@@ -283,6 +283,10 @@ class RobotUSBHandler(USBHandler):
             # The process did not exit after 5 seconds, so kill it.
             self._send_signal(signal.SIGKILL)
 
+        # Ensure logs have finished writing
+        self.log_thread.join()
+
+
     def close(self) -> None:
         self.cleanup()
         LED_CONTROLLER.set_status(LedStatus.NoUSB)
