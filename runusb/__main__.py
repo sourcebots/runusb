@@ -249,26 +249,31 @@ class USBHandler(metaclass=ABCMeta):
 
 class RobotUSBHandler(USBHandler):
     def __init__(self, mountpoint_path: str) -> None:
+        self.mountpoint_path = mountpoint_path
         self._setup_logging(mountpoint_path)
         LED_CONTROLLER.set_code(True)
         LED_CONTROLLER.set_status(LedStatus.Running)
 
-        env = dict(os.environ)
-        env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
+        self.env = dict(os.environ)
+        self.env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
         if MQTT_URL is not None:
             # pass the mqtt url to the robot for camera images
-            env["SBOT_MQTT_URL"] = MQTT_URL
+            self.env["SBOT_MQTT_URL"] = MQTT_URL
+
+        self.start()
+
+    def start(self) -> None:
         run_uuid = uuid.uuid4().hex
         MQTT_EXTRA_DATA["run_uuid"] = run_uuid
-        env["run_uuid"] = run_uuid
+        self.env["run_uuid"] = run_uuid
         self.process = subprocess.Popen(
             [sys.executable, '-u', ROBOT_FILE],
             stdin=subprocess.DEVNULL,
             stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE,
             bufsize=1,  # line buffered
-            cwd=mountpoint_path,
-            env=env,
+            cwd=self.mountpoint_path,
+            env=self.env,
             text=True,
             start_new_session=True,  # Put the process in a new process group
         )
