@@ -27,11 +27,10 @@ from logger_extras import RelativeTimeFilter, TieredFormatter
 
 try:
     from logger_extras import MQTTHandler  # type: ignore[attr-defined]
-    from paho.mqtt.client import Client as MQTTClient
+    from paho.mqtt.client import \
+        Client as MQTTClient  # type: ignore[import-untyped,unused-ignore]
 except ImportError:
     MQTTHandler = None
-    # MQTTClient = None
-
 
 REL_TIME_FILTER: RelativeTimeFilter | None = None
 
