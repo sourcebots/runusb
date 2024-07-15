@@ -46,14 +46,16 @@ USERCODE_LOGGER = logging.getLogger('usercode')
 # the directory under which all USBs will be mounted
 MOUNTPOINT_DIR = os.environ.get('RUNUSB_MOUNTPOINT_DIR', '/media')
 # This will be populated if we have the config file
-# url format: mqtt[s]://[<username>[:<password>]@]<host>[:<port>]/<topic_root>
-MQTT_URL = None
-MQTT_TOPIC_ROOT = ''
-MQTT_CLIENT = None
-MQTT_CONFIG_FILE = '/etc/sbot/mqtt.conf'
-MQTT_EXTRA_DATA = {
-    "run_uuid": "",
+MQTT_SETTINGS = {
+    # url format: mqtt[s]://[<username>[:<password>]@]<host>[:<port>]/<topic_root>
+    "url": None,
+    "active_config": None,
+    "client": None,
+    "extra_data": {
+        "run_uuid": "",
+    },
 }
+MQTT_CONFIG_FILE = '/etc/sbot/mqtt.conf'
 
 
 class MQTTVariables(NamedTuple):
@@ -162,9 +164,11 @@ class LEDController():
             GPIO.output(self.LEDs.STATUS_BLUE, GPIO.HIGH if value.value[2] else GPIO.LOW)
 
         # Also send the status over MQTT
-        if MQTT_CLIENT is not None:
-            MQTT_CLIENT.publish(
-                f'{MQTT_TOPIC_ROOT}/state',
+        mqtt_client = MQTT_SETTINGS['client']
+        if mqtt_client is not None and MQTT_SETTINGS['active_config'] is not None:
+            topic_prefix = MQTT_SETTINGS["active_config"].topic_prefix
+            mqtt_client.publish(
+                f'{topic_prefix}/state',
                 json.dumps({"state": value.name}),
                 qos=1,
                 retain=True,
@@ -256,15 +260,15 @@ class RobotUSBHandler(USBHandler):
 
         self.env = dict(os.environ)
         self.env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
-        if MQTT_URL is not None:
+        if MQTT_SETTINGS['url'] is not None:
             # pass the mqtt url to the robot for camera images
-            self.env["SBOT_MQTT_URL"] = MQTT_URL
+            self.env["SBOT_MQTT_URL"] = MQTT_SETTINGS['url']
 
         self.start()
 
     def start(self) -> None:
         run_uuid = uuid.uuid4().hex
-        MQTT_EXTRA_DATA["run_uuid"] = run_uuid
+        MQTT_SETTINGS['extra_data']["run_uuid"] = run_uuid
         self.env["run_uuid"] = run_uuid
         self.process = subprocess.Popen(
             [sys.executable, '-u', ROBOT_FILE],
@@ -298,7 +302,7 @@ class RobotUSBHandler(USBHandler):
         LED_CONTROLLER.set_status(LedStatus.NoUSB)
         LED_CONTROLLER.set_code(False)
         USERCODE_LOGGER.removeHandler(self.handler)
-        MQTT_EXTRA_DATA["run_uuid"] = ""  # Reset the run UUID
+        MQTT_SETTINGS['extra_data']["run_uuid"] = ""  # Reset the run UUID
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -427,7 +431,6 @@ class AutorunProcessRegistry(object):
 
 
 def set_mqtt_url(config: MQTTVariables) -> None:
-    global MQTT_URL
     if config.username is not None and config.password is not None:
         auth = f"{config.username}:{config.password}@"
     elif config.username is not None:
@@ -438,7 +441,7 @@ def set_mqtt_url(config: MQTTVariables) -> None:
     port_str = (f":{config.port}" if config.port is not None else "")
     scheme = 'mqtts' if config.use_tls else 'mqtt'
 
-    MQTT_URL = (
+    MQTT_SETTINGS['url'] = (
         f"{scheme}://{auth}{config.host}{port_str}/{config.topic_prefix}"
     )
 
@@ -471,7 +474,7 @@ def read_mqtt_config_file() -> MQTTVariables | None:
 
 
 def setup_usercode_logging() -> None:
-    global REL_TIME_FILTER, MQTT_CLIENT, MQTT_TOPIC_ROOT
+    global REL_TIME_FILTER
     REL_TIME_FILTER = RelativeTimeFilter()
     USERCODE_LOGGER.addFilter(REL_TIME_FILTER)
     USERCODE_LOGGER.setLevel(logging.DEBUG)
@@ -479,6 +482,7 @@ def setup_usercode_logging() -> None:
     if MQTTHandler is not None:
         # If we have relative logging, we should also have the MQTT handler
         mqtt_config = read_mqtt_config_file()
+        MQTT_SETTINGS['active_config'] = mqtt_config
 
         if mqtt_config is not None:
             handler = MQTTHandler(
@@ -491,10 +495,9 @@ def setup_usercode_logging() -> None:
                 connected_topic=f"{mqtt_config.topic_prefix}/connected",
                 connected_callback=lambda: LED_CONTROLLER.set_wifi(True),
                 disconnected_callback=lambda: LED_CONTROLLER.set_wifi(False),
-                extra_data=MQTT_EXTRA_DATA,
+                extra_data=MQTT_SETTINGS['extra_data'],
             )
-            MQTT_CLIENT = handler.mqtt
-            MQTT_TOPIC_ROOT = mqtt_config.topic_prefix
+            MQTT_SETTINGS['client'] = handler.mqtt
 
             handler.setLevel(logging.INFO)
             handler.setFormatter(TieredFormatter(
