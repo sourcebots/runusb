@@ -51,6 +51,7 @@ MQTT_SETTINGS = {
     "url": None,
     "active_config": None,
     "client": None,
+    "active_usercode": None,
     "extra_data": {
         "run_uuid": "",
     },
@@ -254,6 +255,12 @@ class USBHandler(metaclass=ABCMeta):
 class RobotUSBHandler(USBHandler):
     def __init__(self, mountpoint_path: str) -> None:
         self.mountpoint_path = mountpoint_path
+
+        if MQTT_SETTINGS['active_usercode'] is not None:
+            MQTT_SETTINGS['active_usercode'] = self
+        else:
+            raise RuntimeError("There is already a usercode running")
+
         self._setup_logging(mountpoint_path)
         LED_CONTROLLER.set_code(True)
         LED_CONTROLLER.set_status(LedStatus.Running)
@@ -303,6 +310,7 @@ class RobotUSBHandler(USBHandler):
         LED_CONTROLLER.set_code(False)
         USERCODE_LOGGER.removeHandler(self.handler)
         MQTT_SETTINGS['extra_data']["run_uuid"] = ""  # Reset the run UUID
+        MQTT_SETTINGS['active_usercode'] = None
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -406,9 +414,13 @@ class AutorunProcessRegistry(object):
         usb_type = detect_usb_type(path)
         LOGGER.info(f"Found new mountpoint: {path} ({usb_type})")
         handler_class = self.TYPE_HANDLERS[usb_type]
-        handler = handler_class(path)
-        LOGGER.info("  -> launched handler")
-        self.mountpoint_handlers[path] = handler
+        try:
+            handler = handler_class(path)
+        except RuntimeError as e:
+            LOGGER.error(f"Failed to launch handler: {e}")
+        else:
+            LOGGER.info("  -> launched handler")
+            self.mountpoint_handlers[path] = handler
 
     def _detect_dead_mountpoint_path(self, path: str) -> None:
         LOGGER.info(f"Lost mountpoint: {path}")
