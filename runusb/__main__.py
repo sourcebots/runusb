@@ -179,6 +179,54 @@ class LEDController():
 LED_CONTROLLER = LEDController()
 
 
+def mqtt_on_stop_action(client, userdata, message):
+    LOGGER.info("Received stop action")
+    try:
+        payload = json.loads(message.payload)
+    except json.JSONDecodeError:
+        LOGGER.warning("Failed to decode stop action message.")
+        return
+
+    if payload.get('pressed') is not True:
+        LOGGER.info("Stop action had incorrect payload, ignoring.")
+        return
+
+    if MQTT_SETTINGS['active_usercode'] is not None:
+        # Run the cleanup function to stop the usercode but allow it to be
+        # restarted without reinserting the USB
+        MQTT_SETTINGS['active_usercode'].cleanup()
+
+
+def mqtt_on_reset_action(client, userdata, message):
+    LOGGER.info("Received reset action")
+    try:
+        payload = json.loads(message.payload)
+    except json.JSONDecodeError:
+        LOGGER.warning("Failed to decode reset action message.")
+        return
+
+    if payload.get('pressed') is not True:
+        LOGGER.info("Reset action had incorrect payload, ignoring.")
+        return
+
+    if MQTT_SETTINGS['active_usercode'] is not None:
+        # The reset function will stop the usercode and wait for it to finish,
+        # if it was running, before restarting it
+        MQTT_SETTINGS['active_usercode'].reset()
+
+
+def mqtt_connected_actions():
+    """Actions to perform when the MQTT client connects."""
+    LED_CONTROLLER.set_wifi(True)
+    if MQTT_SETTINGS['client'] is not None:
+        mqtt_client = MQTT_SETTINGS['client']
+        topic_prefix = MQTT_SETTINGS['active_config'].topic_prefix
+        mqtt_client.message_callback_add(f"{topic_prefix}/stop", mqtt_on_stop_action)
+        mqtt_client.message_callback_add(f"{topic_prefix}/reset", mqtt_on_reset_action)
+        mqtt_client.subscribe(f"{topic_prefix}/stop", qos=1)
+        mqtt_client.subscribe(f"{topic_prefix}/reset", qos=1)
+
+
 @unique
 class USBType(Enum):
     ROBOT = 'ROBOT'
@@ -311,6 +359,13 @@ class RobotUSBHandler(USBHandler):
         USERCODE_LOGGER.removeHandler(self.handler)
         MQTT_SETTINGS['extra_data']["run_uuid"] = ""  # Reset the run UUID
         MQTT_SETTINGS['active_usercode'] = None
+
+    def reset(self) -> None:
+        self.cleanup()
+        # Wait for the process to finish
+        self.process.wait()
+        self.log_thread.join()
+        self.start()
 
     def _send_signal(self, sig: int) -> None:
         if self.process.poll() is not None:
@@ -505,7 +560,7 @@ def setup_usercode_logging() -> None:
                 username=mqtt_config.username,
                 password=mqtt_config.password,
                 connected_topic=f"{mqtt_config.topic_prefix}/connected",
-                connected_callback=lambda: LED_CONTROLLER.set_wifi(True),
+                connected_callback=mqtt_connected_actions,
                 disconnected_callback=lambda: LED_CONTROLLER.set_wifi(False),
                 extra_data=MQTT_SETTINGS['extra_data'],
             )
