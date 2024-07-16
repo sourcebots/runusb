@@ -333,6 +333,7 @@ class RobotUSBHandler(USBHandler):
         MQTT_SETTINGS.extra_data["run_uuid"] = run_uuid
         self.env["run_uuid"] = run_uuid
         self.killed = False
+        REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
         self.process = subprocess.Popen(
             [sys.executable, '-u', ROBOT_FILE],
             stdin=subprocess.DEVNULL,
