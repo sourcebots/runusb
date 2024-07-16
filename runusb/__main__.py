@@ -312,9 +312,9 @@ class RobotUSBHandler(USBHandler):
         self.mountpoint_path = mountpoint_path
 
         if MQTT_SETTINGS.active_usercode is not None:
-            MQTT_SETTINGS.active_usercode = self
-        else:
             raise RuntimeError("There is already a usercode running")
+        else:
+            MQTT_SETTINGS.active_usercode = self
 
         self._setup_logging(mountpoint_path)
         LED_CONTROLLER.set_code(True)
