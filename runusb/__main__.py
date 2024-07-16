@@ -318,7 +318,6 @@ class RobotUSBHandler(USBHandler):
 
         self._setup_logging(mountpoint_path)
         LED_CONTROLLER.set_code(True)
-        LED_CONTROLLER.set_status(LedStatus.Running)
 
         self.env = dict(os.environ)
         self.env["SBOT_METADATA_PATH"] = MOUNTPOINT_DIR
@@ -334,6 +333,7 @@ class RobotUSBHandler(USBHandler):
         self.env["run_uuid"] = run_uuid
         self.killed = False
         REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
+        LED_CONTROLLER.set_status(LedStatus.Running)
         self.process = subprocess.Popen(
             [sys.executable, '-u', ROBOT_FILE],
             stdin=subprocess.DEVNULL,
