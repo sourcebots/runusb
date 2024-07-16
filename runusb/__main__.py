@@ -199,6 +199,7 @@ def mqtt_on_stop_action(client, userdata, message):
     if MQTT_SETTINGS.active_usercode is not None:
         # Run the cleanup function to stop the usercode but allow it to be
         # restarted without reinserting the USB
+        MQTT_SETTINGS.active_usercode.killed = True
         MQTT_SETTINGS.active_usercode.cleanup()
 
 
@@ -331,6 +332,7 @@ class RobotUSBHandler(USBHandler):
         run_uuid = uuid.uuid4().hex
         MQTT_SETTINGS.extra_data["run_uuid"] = run_uuid
         self.env["run_uuid"] = run_uuid
+        self.killed = False
         self.process = subprocess.Popen(
             [sys.executable, '-u', ROBOT_FILE],
             stdin=subprocess.DEVNULL,
@@ -382,7 +384,10 @@ class RobotUSBHandler(USBHandler):
     def _watch_process(self) -> None:
         # Wait for the process to complete
         self.process.wait()
-        if self.process.returncode != 0:
+        if self.killed:
+            USERCODE_LOGGER.warning("Your code was stopped.")
+            LED_CONTROLLER.set_status(LedStatus.Killed)
+        elif self.process.returncode != 0:
             USERCODE_LOGGER.warning(f"Process exited with code {self.process.returncode}")
             LED_CONTROLLER.set_status(LedStatus.Crashed)
         else:
