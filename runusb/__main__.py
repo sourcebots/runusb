@@ -175,7 +175,7 @@ class LEDController():
             topic_prefix = MQTT_SETTINGS.active_config.topic_prefix
             mqtt_client.publish(
                 f'{topic_prefix}/state',
-                json.dumps({"state": value.name}),
+                json.dumps(dict(state=value.name, **MQTT_SETTINGS.extra_data)),
                 qos=1,
                 retain=True,
             )
@@ -363,10 +363,10 @@ class RobotUSBHandler(USBHandler):
 
     def close(self) -> None:
         self.cleanup()
+        MQTT_SETTINGS.extra_data["run_uuid"] = ""  # Reset the run UUID
         LED_CONTROLLER.set_status(LedStatus.NoUSB)
         LED_CONTROLLER.set_code(False)
         USERCODE_LOGGER.removeHandler(self.handler)
-        MQTT_SETTINGS.extra_data["run_uuid"] = ""  # Reset the run UUID
         MQTT_SETTINGS.active_usercode = None
 
     def reset(self) -> None:
