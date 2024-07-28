@@ -361,11 +361,20 @@ class RobotUSBHandler(USBHandler):
             # The process did not exit after 5 seconds, so kill it.
             self._send_signal(signal.SIGKILL)
 
+        # Ensure logs have finished writing
+        self.log_thread.join()
+
+        # Sync filesystems after run finishes
+        os.sync()
+
     def close(self) -> None:
         self.cleanup()
         MQTT_SETTINGS.extra_data["run_uuid"] = ""  # Reset the run UUID
         LED_CONTROLLER.set_status(LedStatus.NoUSB)
         LED_CONTROLLER.set_code(False)
+
+        # Explicitly close handler before removing it
+        self.handler.close()
         USERCODE_LOGGER.removeHandler(self.handler)
         MQTT_SETTINGS.active_usercode = None
 
@@ -404,6 +413,9 @@ class RobotUSBHandler(USBHandler):
             os.path.join(log_dir, LOG_NAME),
             mode='w',  # Overwrite the log file
         )
+        # Write through to avoid buffering the log file since the USB might be
+        # removed at any time
+        self.handler.stream.reconfigure(write_through=True)
         REL_TIME_FILTER.reset_time_reference()  # type: ignore[union-attr]
         self.handler.setFormatter(TieredFormatter(
             fmt='[%(reltime)08.3f - %(levelname)s] %(message)s',
