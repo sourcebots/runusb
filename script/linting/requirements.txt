@@ -1,9 +1,9 @@
-flake8==4.0.1
-flake8-builtins==1.5.3
-flake8-commas==2.1.0
-flake8-comprehensions==3.10.0
+flake8==7.1.2
+flake8-builtins==2.5.0
+flake8-commas==4.0.0
+flake8-comprehensions==3.16.0
 flake8-debugger==4.1.2
-flake8-isort==4.1.2.post0
+flake8-isort==6.1.2
 flake8-mutable==1.2.0
 flake8-todo==0.7
 flake8-tuple==0.4.1
